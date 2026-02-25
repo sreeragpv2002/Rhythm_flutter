@@ -73,28 +73,39 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
     final musicAsync = ref.watch(musicDetailsProvider(widget.initialMusicId));
     final relatedAsync = ref.watch(relatedSongsProvider(widget.initialMusicId));
 
-    // Listen for music details to trigger playback
-    ref.listen<AsyncValue<Music>>(musicDetailsProvider(widget.initialMusicId), (prev, next) {
-      if (next.isLoading) return;
-      next.whenData((music) {
-        final currentItem = ref.read(currentMediaItemProvider).value;
-        final playbackState = ref.read(playbackStateProvider).value;
+    // Listen for music details to trigger playback and sync like state
+    ref.listen<AsyncValue<Music>>(
+      musicDetailsProvider(widget.initialMusicId),
+      (prev, next) {
+        if (next.isLoading || next.hasError) return;
+        next.whenData((music) {
+          final currentItem = ref.read(currentMediaItemProvider).value;
+          final playbackState = ref.read(playbackStateProvider).value;
 
-        if (_isLiked != music.isFavorited) {
-          setState(() => _isLiked = music.isFavorited);
-        }
+          if (_isLiked != music.isFavorited) {
+            setState(() => _isLiked = music.isFavorited);
+          }
 
-        if (currentItem?.id != music.id.toString()) {
-          _playMusic(music, handler, locale);
-        } else if (playbackState != null && !playbackState.playing) {
-          handler.play();
-        }
-      });
-    });
+          if (currentItem?.id != music.id.toString()) {
+            _playMusic(music, handler, locale);
+          } else if (playbackState != null && !playbackState.playing) {
+            handler.play();
+          }
+        });
+      },
+    );
 
     // Handle initial data if already loaded
     if (!musicAsync.isLoading && musicAsync.hasValue) {
       final music = musicAsync.value!;
+      
+      // Sync like state for initial load
+      if (_isLiked != music.isFavorited) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _isLiked = music.isFavorited);
+        });
+      }
+
       final currentItem = ref.read(currentMediaItemProvider).value;
       if (currentItem?.id != music.id.toString()) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -228,8 +239,10 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
 
     try {
       final newStatus = await ref.read(musicRepositoryProvider).toggleFavorite(music.id);
-      if (mounted && _isLiked != newStatus) {
+      if (mounted) {
         setState(() => _isLiked = newStatus);
+        // Invalidate cache so that other parts of the app and future navigation see the fresh state
+        ref.invalidate(musicDetailsProvider(widget.initialMusicId));
       }
     } catch (e) {
       if (mounted) {
@@ -374,7 +387,7 @@ class _TitleRow extends StatelessWidget {
               SlideUpFadeIn(
                 duration: AppAnimations.normal,
                 child: Text(
-                  item?.title ?? '—',
+                  item?.title ?? context.l10n.unknownArtist, // Standardizing to one placeholder if null
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -389,7 +402,7 @@ class _TitleRow extends StatelessWidget {
                 delay: const Duration(milliseconds: 100),
                 duration: AppAnimations.normal,
                 child: Text(
-                  item?.artist ?? '—',
+                  item?.artist ?? context.l10n.unknownArtist,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

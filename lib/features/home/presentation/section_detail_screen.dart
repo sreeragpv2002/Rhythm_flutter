@@ -28,7 +28,7 @@ class SectionDetailScreen extends ConsumerWidget {
     return Scaffold(
       body: homeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error: $err')),
+        error: (err, _) => Center(child: Text('${context.l10n.error}: $err')),
         data: (feed) {
           final section = feed.sections.firstWhere(
             (s) => s.slug == slug,
@@ -36,7 +36,7 @@ class SectionDetailScreen extends ConsumerWidget {
           );
 
           if (section.musicIds.isEmpty) {
-            return const Center(child: Text('No songs found in this section'));
+            return Center(child: Text(context.l10n.noSongsFound));
           }
 
           return CustomScrollView(

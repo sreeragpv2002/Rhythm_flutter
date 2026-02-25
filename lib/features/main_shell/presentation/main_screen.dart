@@ -86,7 +86,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
     switch (index) {
       case 0:
-        context.go('/home');
+        context.go('/');
       case 1:
         context.go('/search');
       case 2:

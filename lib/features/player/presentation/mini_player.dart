@@ -104,7 +104,7 @@ class MiniPlayer extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                mediaItem.title,
+                                mediaItem.title.isEmpty ? context.l10n.appName : mediaItem.title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -113,18 +113,19 @@ class MiniPlayer extends ConsumerWidget {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              if (mediaItem.artist != null && mediaItem.artist!.isNotEmpty)
-                                Text(
-                                  mediaItem.artist!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: isDark
-                                        ? Colors.white.withValues(alpha: 0.55)
-                                        : AppColors.textSecondaryLight,
-                                    fontSize: 12,
-                                  ),
+                              Text(
+                                (mediaItem.artist == null || mediaItem.artist!.isEmpty)
+                                    ? context.l10n.unknownArtist
+                                    : mediaItem.artist!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.55)
+                                      : AppColors.textSecondaryLight,
+                                  fontSize: 12,
                                 ),
+                              ),
                             ],
                           ),
                         ),

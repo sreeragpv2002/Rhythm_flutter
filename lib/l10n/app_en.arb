@@ -52,5 +52,9 @@
   "splashSubtitle": "Your world of music awaits",
   "nowPlaying": "Now Playing",
   "upNext": "Up Next",
-  "viewAll": "View All"
+  "viewAll": "View All",
+  "unknownArtist": "Unknown Artist",
+  "unknownAlbum": "Unknown Album",
+  "error": "Error",
+  "noSongsFound": "No songs found"
 }

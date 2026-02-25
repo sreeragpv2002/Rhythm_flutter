@@ -166,4 +166,16 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get viewAll => 'عرض الكل';
+
+  @override
+  String get unknownArtist => 'فنان مجهول';
+
+  @override
+  String get unknownAlbum => 'ألبوم مجهول';
+
+  @override
+  String get error => 'خطأ';
+
+  @override
+  String get noSongsFound => 'لم يتم العثور على أغاني';
 }

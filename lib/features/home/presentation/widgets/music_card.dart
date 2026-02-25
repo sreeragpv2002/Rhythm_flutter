@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
 import 'package:rhythm_flutter/core/theme/spacing.dart';
 import 'package:rhythm_flutter/features/home/data/models/music.dart';
@@ -112,7 +113,9 @@ class _MusicCardState extends State<MusicCard>
 
               // ── Title ──
               Text(
-                widget.music.getDisplayTitle(widget.locale),
+                widget.music.getDisplayTitle(widget.locale).isEmpty
+                    ? context.l10n.appName // Fallback to app name if title is empty?
+                    : widget.music.getDisplayTitle(widget.locale),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -126,7 +129,9 @@ class _MusicCardState extends State<MusicCard>
 
               // ── Artist ──
               Text(
-                widget.music.getDisplayArtists(widget.locale),
+                widget.music.getDisplayArtists(widget.locale).isEmpty
+                    ? context.l10n.unknownArtist
+                    : widget.music.getDisplayArtists(widget.locale),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(

@@ -46,7 +46,7 @@ class Music with _$Music {
         data['titles'] = {lang: data['title']};
       }
     } else if (data['titles'] == null) {
-      data['titles'] = {'en': 'Unknown Title'};
+      data['titles'] = <String, String>{};
     }
 
     // 2. Handle artists mapping (Normalize to List of Maps)
@@ -126,11 +126,11 @@ class Music with _$Music {
   }
 
   String getDisplayTitle(String locale) {
-    return titles[locale] ?? titles['en'] ?? titles.values.firstOrNull ?? 'Unknown Title';
+    return titles[locale] ?? titles['en'] ?? titles.values.firstOrNull ?? '';
   }
 
   String getDisplayArtists(String locale) {
-    if (artistNames.isEmpty) return 'Unknown Artist';
+    if (artistNames.isEmpty) return '';
     return artistNames.map((a) => a[locale] ?? a['en'] ?? a.values.firstOrNull ?? '').join(', ');
   }
 

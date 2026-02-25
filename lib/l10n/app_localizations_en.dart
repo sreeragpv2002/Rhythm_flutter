@@ -167,4 +167,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get viewAll => 'View All';
+
+  @override
+  String get unknownArtist => 'Unknown Artist';
+
+  @override
+  String get unknownAlbum => 'Unknown Album';
+
+  @override
+  String get error => 'Error';
+
+  @override
+  String get noSongsFound => 'No songs found';
 }

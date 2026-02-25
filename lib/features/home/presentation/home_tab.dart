@@ -69,7 +69,7 @@ class HomeTab extends ConsumerWidget {
                 elevation: 0,
                 surfaceTintColor: Colors.transparent,
                 title: Text(
-                  'Rhythm',
+                  context.l10n.appName,
                   style: context.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: isDark ? Colors.white : Colors.black87,

@@ -52,5 +52,9 @@
   "splashSubtitle": "عالمك الموسيقي بانتظارك",
   "nowPlaying": "يعرض الآن",
   "upNext": "التالي",
-  "viewAll": "عرض الكل"
+  "viewAll": "عرض الكل",
+  "unknownArtist": "فنان مجهول",
+  "unknownAlbum": "ألبوم مجهول",
+  "error": "خطأ",
+  "noSongsFound": "لم يتم العثور على أغاني"
 }
