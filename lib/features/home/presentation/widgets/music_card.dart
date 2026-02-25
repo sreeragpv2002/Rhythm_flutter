@@ -12,12 +12,16 @@ import 'package:rhythm_flutter/features/home/data/models/music.dart';
 class MusicCard extends StatefulWidget {
   final Music music;
   final String locale;
+  final bool isFavorite;
+  final VoidCallback? onFavoriteToggle;
   final VoidCallback? onTap;
 
   const MusicCard({
     super.key,
     required this.music,
     required this.locale,
+    this.isFavorite = false,
+    this.onFavoriteToggle,
     this.onTap,
   });
 
@@ -104,6 +108,28 @@ class _MusicCardState extends State<MusicCard>
                           ),
                         ),
                       ),
+
+                      // Favorite toggle heart overlay
+                      if (widget.onFavoriteToggle != null)
+                        Positioned(
+                          top: AppSpacing.xs,
+                          right: AppSpacing.xs,
+                          child: GestureDetector(
+                            onTap: widget.onFavoriteToggle,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.black.withValues(alpha: 0.3),
+                              ),
+                              child: Icon(
+                                widget.isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                size: 18,
+                                color: widget.isFavorite ? const Color(0xFFFF6B6B) : Colors.white.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

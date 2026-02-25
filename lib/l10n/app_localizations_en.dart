@@ -179,4 +179,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noSongsFound => 'No songs found';
+
+  @override
+  String get library => 'Library';
+
+  @override
+  String get favorites => 'Favorites';
 }

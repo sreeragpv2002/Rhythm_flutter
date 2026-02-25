@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:rhythm_flutter/features/home/data/models/home_feed.dart';
 import 'package:rhythm_flutter/features/home/data/repositories/home_repository.dart';
+import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
 
 part 'home_provider.g.dart';
 
@@ -9,7 +10,13 @@ class Home extends _$Home {
   @override
   Future<HomeFeed> build() async {
     final repository = ref.watch(homeRepositoryProvider);
-    return repository.getHomeFeed();
+    final feed = await repository.getHomeFeed();
+    
+    // Initialize favorites from feed musicMap
+    final songs = feed.musicMap.values.toList();
+    ref.read(favoritesProvider.notifier).initFromList(songs);
+    
+    return feed;
   }
 
   Future<void> fetchHomeFeed() async {

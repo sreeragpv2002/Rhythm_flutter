@@ -233,6 +233,27 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
     }
   }
 
+  /// Update favorite status for a specific item in the queue
+  void updateMediaItemFavorite(String id, bool isFavorite) {
+    final currentQueue = queue.value;
+    final index = currentQueue.indexWhere((item) => item.id == id);
+    if (index != -1) {
+      final item = currentQueue[index];
+      final extras = Map<String, dynamic>.from(item.extras ?? {});
+      extras['is_favorited'] = isFavorite;
+      
+      final newItem = item.copyWith(extras: extras);
+      final newQueue = List<MediaItem>.from(currentQueue);
+      newQueue[index] = newItem;
+      
+      queue.add(newQueue);
+      
+      if (mediaItem.value?.id == id) {
+        mediaItem.add(newItem);
+      }
+    }
+  }
+
   // ── Lifecycle ──
 
   @override

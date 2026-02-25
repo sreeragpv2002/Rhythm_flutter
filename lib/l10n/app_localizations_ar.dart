@@ -178,4 +178,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get noSongsFound => 'لم يتم العثور على أغاني';
+
+  @override
+  String get library => 'المكتبة';
+
+  @override
+  String get favorites => 'المفضلة';
 }

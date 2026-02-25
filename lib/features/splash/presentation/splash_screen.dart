@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:io' as io show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:animate_do/animate_do.dart';
@@ -25,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen> {
     debugPrint('SplashScreen: _handleStartup started');
     
     // 1. Android 13+ Permission handling for Notifications (required for AudioService)
-    if (Platform.isAndroid) {
+    if (!kIsWeb && io.Platform.isAndroid) {
       try {
         debugPrint('SplashScreen: Checking notification permissions');
         final status = await Permission.notification.status.timeout(

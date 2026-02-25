@@ -7,6 +7,7 @@ import 'package:rhythm_flutter/core/theme/spacing.dart';
 import 'package:rhythm_flutter/features/home/data/models/home_feed.dart';
 import 'package:rhythm_flutter/features/home/presentation/widgets/music_card.dart';
 import 'package:rhythm_flutter/features/home/providers/home_provider.dart';
+import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
 import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
 
 class SectionDetailScreen extends ConsumerWidget {
@@ -77,6 +78,16 @@ class SectionDetailScreen extends ConsumerWidget {
                         child: MusicCard(
                           music: music,
                           locale: locale,
+                          isFavorite: ref.watch(favoritesProvider).contains(music.id),
+                          onFavoriteToggle: () async {
+                            await ref.read(favoritesProvider.notifier).toggleFavorite(music);
+                            // Update audio handler if this is the current song
+                            final currentMedia = ref.read(audioHandlerProvider).mediaItem.value;
+                            if (currentMedia?.id == music.id.toString()) {
+                              final isLiked = ref.read(favoritesProvider).contains(music.id);
+                              ref.read(audioHandlerProvider).updateMediaItemFavorite(music.id.toString(), isLiked);
+                            }
+                          },
                           onTap: () {
                             final handler = ref.read(audioHandlerProvider);
                             final sectionMusic = section.musicIds

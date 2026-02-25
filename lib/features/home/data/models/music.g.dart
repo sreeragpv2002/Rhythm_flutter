@@ -27,6 +27,8 @@ _$MusicImpl _$$MusicImplFromJson(Map<String, dynamic> json) => _$MusicImpl(
       playCount: (json['play_count'] as num?)?.toInt() ?? 0,
       isFavorited: json['is_favorited'] as bool? ?? false,
       isFavorite: json['is_favorite'] as bool? ?? false,
+      nextSongId: (json['next_song_id'] as num?)?.toInt(),
+      previousSongId: (json['previous_song_id'] as num?)?.toInt(),
       relatedByAlbum: (json['related_by_album'] as List<dynamic>?)
           ?.map((e) => Music.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -53,6 +55,8 @@ Map<String, dynamic> _$$MusicImplToJson(_$MusicImpl instance) =>
       'play_count': instance.playCount,
       'is_favorited': instance.isFavorited,
       'is_favorite': instance.isFavorite,
+      'next_song_id': instance.nextSongId,
+      'previous_song_id': instance.previousSongId,
       'related_by_album': instance.relatedByAlbum,
       'related_by_artist': instance.relatedByArtist,
       'related_by_tags': instance.relatedByTags,

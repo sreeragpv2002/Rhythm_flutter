@@ -8,6 +8,8 @@ import 'package:rhythm_flutter/core/theme/glass_decoration.dart';
 import 'package:rhythm_flutter/core/theme/spacing.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
 import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
+import 'package:rhythm_flutter/features/home/data/models/music.dart';
+import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
 
 /// Compact now-playing bar shown above the bottom navigation.
 ///
@@ -128,6 +130,41 @@ class MiniPlayer extends ConsumerWidget {
                               ),
                             ],
                           ),
+                        ),
+
+                        // Favorite toggle
+                        IconButton(
+                          icon: Icon(
+                            ref.watch(favoritesProvider).contains(int.tryParse(mediaItem.id) ?? -1)
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            color: ref.watch(favoritesProvider).contains(int.tryParse(mediaItem.id) ?? -1)
+                                ? const Color(0xFFFF6B6B)
+                                : (isDark ? Colors.white : AppColors.textPrimaryLight).withValues(alpha: 0.35),
+                            size: 24,
+                          ),
+                          onPressed: () async {
+                            final musicId = int.tryParse(mediaItem.id);
+                            if (musicId != null) {
+                              // We need a Music object but we only have MediaItem.
+                              // Actually toggleFavorite might need more than just ID if it reverts.
+                              // But repository.toggleFavorite(id) only needs ID.
+                              // The provider.toggleFavorite(music) needs music for optimistic update.
+                              // Let's create a minimal Music object or adjust the provider.
+                              // For now, let's use the provider's logic.
+                              final music = Music(
+                                id: musicId,
+                                titles: mediaItem.extras?['titles'] != null ? Map<String, String>.from(mediaItem.extras!['titles']) : {},
+                                artistNames: mediaItem.extras?['artist_names'] != null ? List<Map<String, String>>.from(mediaItem.extras!['artist_names'].map((e) => Map<String, String>.from(e))) : [],
+                                duration: mediaItem.duration?.inSeconds ?? 0,
+                                language: 'en',
+                                languageDisplay: 'English',
+                              );
+                              await ref.read(favoritesProvider.notifier).toggleFavorite(music);
+                              final isLiked = ref.read(favoritesProvider).contains(musicId);
+                              handler.updateMediaItemFavorite(mediaItem.id, isLiked);
+                            }
+                          },
                         ),
 
                         // Play / Pause

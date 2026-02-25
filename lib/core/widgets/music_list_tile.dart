@@ -12,6 +12,8 @@ class MusicListTile extends StatelessWidget {
   final String? imageUrl;
   final String? trailing;
   final VoidCallback? onTap;
+  final bool? isFavorite;
+  final VoidCallback? onFavoriteToggle;
   final double thumbnailSize;
 
   const MusicListTile({
@@ -21,6 +23,8 @@ class MusicListTile extends StatelessWidget {
     this.imageUrl,
     this.trailing,
     this.onTap,
+    this.isFavorite,
+    this.onFavoriteToggle,
     this.thumbnailSize = AppSpacing.thumbnailMd,
   });
 
@@ -101,6 +105,17 @@ class MusicListTile extends StatelessWidget {
                     fontSize: 12,
                   ),
                 ),
+              ),
+
+            // ── Favorite Toggle ──
+            if (onFavoriteToggle != null)
+              IconButton(
+                icon: Icon(
+                  isFavorite == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  size: 20,
+                  color: isFavorite == true ? const Color(0xFFFF6B6B) : (isDark ? Colors.white : colorScheme.onSurface).withValues(alpha: 0.35),
+                ),
+                onPressed: onFavoriteToggle,
               ),
           ],
         ),

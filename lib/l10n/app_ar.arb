@@ -56,5 +56,7 @@
   "unknownArtist": "فنان مجهول",
   "unknownAlbum": "ألبوم مجهول",
   "error": "خطأ",
-  "noSongsFound": "لم يتم العثور على أغاني"
+  "noSongsFound": "لم يتم العثور على أغاني",
+  "library": "المكتبة",
+  "favorites": "المفضلة"
 }

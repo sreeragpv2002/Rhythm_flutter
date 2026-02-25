@@ -439,6 +439,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No songs found'**
   String get noSongsFound;
+
+  /// No description provided for @library.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get library;
+
+  /// No description provided for @favorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get favorites;
 }
 
 class _AppLocalizationsDelegate

@@ -6,6 +6,7 @@ import 'package:rhythm_flutter/core/theme/spacing.dart';
 import 'package:rhythm_flutter/core/widgets/music_list_tile.dart';
 import 'package:rhythm_flutter/core/widgets/shimmer_loading.dart';
 import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
+import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
 import 'package:rhythm_flutter/features/search/providers/search_provider.dart';
 
 class SearchTab extends ConsumerStatefulWidget {
@@ -132,6 +133,16 @@ class _SearchTabState extends ConsumerState<SearchTab> {
                             title: song.getDisplayTitle(locale),
                             subtitle: song.getDisplayArtists(locale),
                             imageUrl: song.thumbUrl,
+                            isFavorite: ref.watch(favoritesProvider).contains(song.id),
+                            onFavoriteToggle: () async {
+                              await ref.read(favoritesProvider.notifier).toggleFavorite(song);
+                              // Update audio handler if this is the current song
+                              final currentMedia = ref.read(audioHandlerProvider).mediaItem.value;
+                              if (currentMedia?.id == song.id.toString()) {
+                                final isLiked = ref.read(favoritesProvider).contains(song.id);
+                                ref.read(audioHandlerProvider).updateMediaItemFavorite(song.id.toString(), isLiked);
+                              }
+                            },
                             trailing: _formatDuration(Duration(seconds: song.duration)),
                             onTap: () {
                               final mediaItems = songs

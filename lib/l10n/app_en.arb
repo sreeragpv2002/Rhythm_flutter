@@ -56,5 +56,7 @@
   "unknownArtist": "Unknown Artist",
   "unknownAlbum": "Unknown Album",
   "error": "Error",
-  "noSongsFound": "No songs found"
+  "noSongsFound": "No songs found",
+  "library": "Library",
+  "favorites": "Favorites"
 }

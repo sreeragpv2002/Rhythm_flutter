@@ -42,6 +42,10 @@ mixin _$Music {
   bool get isFavorited => throw _privateConstructorUsedError;
   @JsonKey(name: 'is_favorite')
   bool get isFavorite => throw _privateConstructorUsedError;
+  @JsonKey(name: 'next_song_id')
+  int? get nextSongId => throw _privateConstructorUsedError;
+  @JsonKey(name: 'previous_song_id')
+  int? get previousSongId => throw _privateConstructorUsedError;
   @JsonKey(name: 'related_by_album')
   List<Music>? get relatedByAlbum => throw _privateConstructorUsedError;
   @JsonKey(name: 'related_by_artist')
@@ -77,6 +81,8 @@ abstract class $MusicCopyWith<$Res> {
       @JsonKey(name: 'play_count') int playCount,
       @JsonKey(name: 'is_favorited') bool isFavorited,
       @JsonKey(name: 'is_favorite') bool isFavorite,
+      @JsonKey(name: 'next_song_id') int? nextSongId,
+      @JsonKey(name: 'previous_song_id') int? previousSongId,
       @JsonKey(name: 'related_by_album') List<Music>? relatedByAlbum,
       @JsonKey(name: 'related_by_artist') List<Music>? relatedByArtist,
       @JsonKey(name: 'related_by_tags') List<Music>? relatedByTags});
@@ -110,6 +116,8 @@ class _$MusicCopyWithImpl<$Res, $Val extends Music>
     Object? playCount = null,
     Object? isFavorited = null,
     Object? isFavorite = null,
+    Object? nextSongId = freezed,
+    Object? previousSongId = freezed,
     Object? relatedByAlbum = freezed,
     Object? relatedByArtist = freezed,
     Object? relatedByTags = freezed,
@@ -167,6 +175,14 @@ class _$MusicCopyWithImpl<$Res, $Val extends Music>
           ? _value.isFavorite
           : isFavorite // ignore: cast_nullable_to_non_nullable
               as bool,
+      nextSongId: freezed == nextSongId
+          ? _value.nextSongId
+          : nextSongId // ignore: cast_nullable_to_non_nullable
+              as int?,
+      previousSongId: freezed == previousSongId
+          ? _value.previousSongId
+          : previousSongId // ignore: cast_nullable_to_non_nullable
+              as int?,
       relatedByAlbum: freezed == relatedByAlbum
           ? _value.relatedByAlbum
           : relatedByAlbum // ignore: cast_nullable_to_non_nullable
@@ -204,6 +220,8 @@ abstract class _$$MusicImplCopyWith<$Res> implements $MusicCopyWith<$Res> {
       @JsonKey(name: 'play_count') int playCount,
       @JsonKey(name: 'is_favorited') bool isFavorited,
       @JsonKey(name: 'is_favorite') bool isFavorite,
+      @JsonKey(name: 'next_song_id') int? nextSongId,
+      @JsonKey(name: 'previous_song_id') int? previousSongId,
       @JsonKey(name: 'related_by_album') List<Music>? relatedByAlbum,
       @JsonKey(name: 'related_by_artist') List<Music>? relatedByArtist,
       @JsonKey(name: 'related_by_tags') List<Music>? relatedByTags});
@@ -235,6 +253,8 @@ class __$$MusicImplCopyWithImpl<$Res>
     Object? playCount = null,
     Object? isFavorited = null,
     Object? isFavorite = null,
+    Object? nextSongId = freezed,
+    Object? previousSongId = freezed,
     Object? relatedByAlbum = freezed,
     Object? relatedByArtist = freezed,
     Object? relatedByTags = freezed,
@@ -292,6 +312,14 @@ class __$$MusicImplCopyWithImpl<$Res>
           ? _value.isFavorite
           : isFavorite // ignore: cast_nullable_to_non_nullable
               as bool,
+      nextSongId: freezed == nextSongId
+          ? _value.nextSongId
+          : nextSongId // ignore: cast_nullable_to_non_nullable
+              as int?,
+      previousSongId: freezed == previousSongId
+          ? _value.previousSongId
+          : previousSongId // ignore: cast_nullable_to_non_nullable
+              as int?,
       relatedByAlbum: freezed == relatedByAlbum
           ? _value._relatedByAlbum
           : relatedByAlbum // ignore: cast_nullable_to_non_nullable
@@ -326,6 +354,8 @@ class _$MusicImpl extends _Music {
       @JsonKey(name: 'play_count') this.playCount = 0,
       @JsonKey(name: 'is_favorited') this.isFavorited = false,
       @JsonKey(name: 'is_favorite') this.isFavorite = false,
+      @JsonKey(name: 'next_song_id') this.nextSongId,
+      @JsonKey(name: 'previous_song_id') this.previousSongId,
       @JsonKey(name: 'related_by_album') final List<Music>? relatedByAlbum,
       @JsonKey(name: 'related_by_artist') final List<Music>? relatedByArtist,
       @JsonKey(name: 'related_by_tags') final List<Music>? relatedByTags})
@@ -402,6 +432,12 @@ class _$MusicImpl extends _Music {
   @override
   @JsonKey(name: 'is_favorite')
   final bool isFavorite;
+  @override
+  @JsonKey(name: 'next_song_id')
+  final int? nextSongId;
+  @override
+  @JsonKey(name: 'previous_song_id')
+  final int? previousSongId;
   final List<Music>? _relatedByAlbum;
   @override
   @JsonKey(name: 'related_by_album')
@@ -437,7 +473,7 @@ class _$MusicImpl extends _Music {
 
   @override
   String toString() {
-    return 'Music(id: $id, titles: $titles, artistNames: $artistNames, albumTitles: $albumTitles, thumbUrl: $thumbUrl, audioUrl: $audioUrl, duration: $duration, language: $language, languageDisplay: $languageDisplay, tags: $tags, playCount: $playCount, isFavorited: $isFavorited, isFavorite: $isFavorite, relatedByAlbum: $relatedByAlbum, relatedByArtist: $relatedByArtist, relatedByTags: $relatedByTags)';
+    return 'Music(id: $id, titles: $titles, artistNames: $artistNames, albumTitles: $albumTitles, thumbUrl: $thumbUrl, audioUrl: $audioUrl, duration: $duration, language: $language, languageDisplay: $languageDisplay, tags: $tags, playCount: $playCount, isFavorited: $isFavorited, isFavorite: $isFavorite, nextSongId: $nextSongId, previousSongId: $previousSongId, relatedByAlbum: $relatedByAlbum, relatedByArtist: $relatedByArtist, relatedByTags: $relatedByTags)';
   }
 
   @override
@@ -468,6 +504,10 @@ class _$MusicImpl extends _Music {
                 other.isFavorited == isFavorited) &&
             (identical(other.isFavorite, isFavorite) ||
                 other.isFavorite == isFavorite) &&
+            (identical(other.nextSongId, nextSongId) ||
+                other.nextSongId == nextSongId) &&
+            (identical(other.previousSongId, previousSongId) ||
+                other.previousSongId == previousSongId) &&
             const DeepCollectionEquality()
                 .equals(other._relatedByAlbum, _relatedByAlbum) &&
             const DeepCollectionEquality()
@@ -493,6 +533,8 @@ class _$MusicImpl extends _Music {
       playCount,
       isFavorited,
       isFavorite,
+      nextSongId,
+      previousSongId,
       const DeepCollectionEquality().hash(_relatedByAlbum),
       const DeepCollectionEquality().hash(_relatedByArtist),
       const DeepCollectionEquality().hash(_relatedByTags));
@@ -529,6 +571,8 @@ abstract class _Music extends Music {
       @JsonKey(name: 'play_count') final int playCount,
       @JsonKey(name: 'is_favorited') final bool isFavorited,
       @JsonKey(name: 'is_favorite') final bool isFavorite,
+      @JsonKey(name: 'next_song_id') final int? nextSongId,
+      @JsonKey(name: 'previous_song_id') final int? previousSongId,
       @JsonKey(name: 'related_by_album') final List<Music>? relatedByAlbum,
       @JsonKey(name: 'related_by_artist') final List<Music>? relatedByArtist,
       @JsonKey(name: 'related_by_tags')
@@ -571,6 +615,12 @@ abstract class _Music extends Music {
   @override
   @JsonKey(name: 'is_favorite')
   bool get isFavorite;
+  @override
+  @JsonKey(name: 'next_song_id')
+  int? get nextSongId;
+  @override
+  @JsonKey(name: 'previous_song_id')
+  int? get previousSongId;
   @override
   @JsonKey(name: 'related_by_album')
   List<Music>? get relatedByAlbum;

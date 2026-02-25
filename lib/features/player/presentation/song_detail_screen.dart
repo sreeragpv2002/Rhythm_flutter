@@ -17,6 +17,7 @@ import 'package:rhythm_flutter/features/home/data/models/music.dart';
 import 'package:rhythm_flutter/features/home/data/repositories/music_repository.dart';
 import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
 import 'package:rhythm_flutter/features/player/providers/music_detail_provider.dart';
+import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
 
 class SongDetailScreen extends ConsumerStatefulWidget {
   final int initialMusicId;
@@ -72,6 +73,15 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
     final colorScheme = context.colorScheme;
     final musicAsync = ref.watch(musicDetailsProvider(widget.initialMusicId));
     final relatedAsync = ref.watch(relatedSongsProvider(widget.initialMusicId));
+    final favorites = ref.watch(favoritesProvider);
+    final currentIsLiked = favorites.contains(widget.initialMusicId);
+
+    // Sync local state with global favorites
+    if (_isLiked != currentIsLiked) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _isLiked = currentIsLiked);
+      });
+    }
 
     // Listen for music details to trigger playback and sync like state
     ref.listen<AsyncValue<Music>>(
@@ -235,18 +245,20 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
     final music = ref.read(musicDetailsProvider(widget.initialMusicId)).valueOrNull;
     if (music == null) return;
 
-    setState(() => _isLiked = !_isLiked);
-
     try {
-      final newStatus = await ref.read(musicRepositoryProvider).toggleFavorite(music.id);
+      await ref.read(favoritesProvider.notifier).toggleFavorite(music);
+      final isLiked = ref.read(favoritesProvider).contains(music.id);
+      
+      // Update audio handler
+      ref.read(audioHandlerProvider).updateMediaItemFavorite(music.id.toString(), isLiked);
+      
       if (mounted) {
-        setState(() => _isLiked = newStatus);
-        // Invalidate cache so that other parts of the app and future navigation see the fresh state
+        setState(() => _isLiked = isLiked);
+        // Invalidate cache if needed, though provider should handle it
         ref.invalidate(musicDetailsProvider(widget.initialMusicId));
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLiked = !_isLiked);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );

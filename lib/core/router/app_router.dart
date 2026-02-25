@@ -11,6 +11,7 @@ import 'package:rhythm_flutter/features/search/presentation/search_tab.dart';
 import 'package:rhythm_flutter/features/settings/presentation/settings_tab.dart';
 import 'package:rhythm_flutter/features/player/presentation/song_detail_screen.dart';
 import 'package:rhythm_flutter/features/home/presentation/section_detail_screen.dart';
+import 'package:rhythm_flutter/features/home/presentation/library_tab.dart';
 import 'package:flutter/material.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -46,6 +47,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/search',
             builder: (context, state) => const SearchTab(),
+          ),
+          GoRoute(
+            path: '/library',
+            builder: (context, state) => const LibraryTab(),
           ),
           GoRoute(
             path: '/settings',

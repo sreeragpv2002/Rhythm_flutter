@@ -18,6 +18,7 @@ MediaItem musicToMediaItem(Music music, [String? locale]) {
       'titles': music.titles,
       'artist_names': music.artistNames,
       'album_titles': music.albumTitles,
+      'is_favorited': music.isFavorited || music.isFavorite,
     },
   );
 }

@@ -17,10 +17,8 @@ class MusicRepository {
   /// Fetch detailed song info, including related songs and direct audio URL
   Future<Music> getMusicDetails(int id) async {
     try {
-      debugPrint('MusicRepository: Fetching details for $id');
-      // Some APIs use GET for details even if POST is used for streaming
-      // But based on previous logs, we'll try POST first as requested
-      final response = await _dio.post('music/$id/stream/');
+      debugPrint('MusicRepository: Fetching playback details for $id');
+      final response = await _dio.get('music/$id/playback/');
 
       debugPrint('MusicRepository: Response received: ${response.statusCode}');
 

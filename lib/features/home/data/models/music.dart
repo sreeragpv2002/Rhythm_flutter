@@ -15,7 +15,7 @@ class Music with _$Music {
     required int id,
     required Map<String, String> titles,
     @JsonKey(name: 'artist_names') required List<Map<String, String>> artistNames,
-    @JsonKey(name: 'album_titles') Map<String, String>? albumTitles,
+    @                                                                                                                                                     JsonKey(name: 'album_titles') Map<String, String>? albumTitles,
     @JsonKey(name: 'thumb_url') String? thumbUrl,
     @JsonKey(name: 'audio_url') String? audioUrl,
     required int duration,
@@ -25,6 +25,8 @@ class Music with _$Music {
     @JsonKey(name: 'play_count') @Default(0) int playCount,
     @JsonKey(name: 'is_favorited') @Default(false) bool isFavorited,
     @JsonKey(name: 'is_favorite') @Default(false) bool isFavorite,
+    @JsonKey(name: 'next_song_id') int? nextSongId,
+    @JsonKey(name: 'previous_song_id') int? previousSongId,
     @JsonKey(name: 'related_by_album') List<Music>? relatedByAlbum,
     @JsonKey(name: 'related_by_artist') List<Music>? relatedByArtist,
     @JsonKey(name: 'related_by_tags') List<Music>? relatedByTags,
@@ -108,6 +110,22 @@ class Music with _$Music {
            data['album_titles'] = {'en': data['album_title'].toString()};
          }
       }
+    }
+
+    // 4. Handle Playback specific fields
+    if (data['duration_seconds'] != null) {
+      data['duration'] = data['duration_seconds'];
+    }
+
+    if (data['artists'] != null && data['artists'] is List && (data['artist_names'] == null || (data['artist_names'] as List).isEmpty)) {
+      final rawArtists = data['artists'] as List;
+      data['artist_names'] = rawArtists.map((e) {
+        if (e is Map && e['name'] != null) {
+          if (e['name'] is Map) return Map<String, String>.from(e['name']);
+          return {'en': e['name'].toString()};
+        }
+        return {'en': e.toString()};
+      }).toList();
     }
 
     if (data['album_titles'] != null && data['album_titles'] is Map) {
