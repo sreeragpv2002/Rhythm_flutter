@@ -2,9 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rhythm_flutter/core/network/dio_client.dart';
 
-import '../models/artist.dart';
-import '../models/language.dart';
-import '../models/profile_request.dart';
+import 'package:rhythm_flutter/features/profile/data/models/artist.dart';
+import 'package:rhythm_flutter/features/profile/data/models/language.dart';
+import 'package:rhythm_flutter/features/profile/data/models/profile_request.dart';
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
   final dio = ref.watch(dioProvider);

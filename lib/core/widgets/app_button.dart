@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
+import 'package:rhythm_flutter/core/theme/spacing.dart';
 
+/// Primary action button with gradient fill, loading state, and outlined variant.
+///
+/// Uses 8pt spacing grid for all dimensions.
 class AppButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;
@@ -18,18 +23,17 @@ class AppButton extends StatelessWidget {
     this.isOutlined = false,
     this.icon,
     this.width,
-    this.height = 56,
+    this.height = AppSpacing.buttonHeight,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
     final colorScheme = context.colorScheme;
 
     final child = isLoading
         ? const SizedBox(
-            height: 24,
-            width: 24,
+            height: AppSpacing.iconMd,
+            width: AppSpacing.iconMd,
             child: CircularProgressIndicator(
               strokeWidth: 2.5,
               color: Colors.white,
@@ -41,11 +45,11 @@ class AppButton extends StatelessWidget {
             children: [
               if (icon != null) ...[
                 Icon(icon, size: 20),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
               ],
               Text(
                 text,
-                style: theme.textTheme.titleMedium?.copyWith(
+                style: context.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: isOutlined ? colorScheme.primary : Colors.white,
                 ),
@@ -66,7 +70,7 @@ class AppButton extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
               boxShadow: [
                 BoxShadow(
                   color: colorScheme.primary.withValues(alpha: 0.3),
@@ -78,22 +82,28 @@ class AppButton extends StatelessWidget {
           : null,
       child: isOutlined
           ? OutlinedButton(
-              onPressed: isLoading ? null : onPressed,
+              onPressed: isLoading ? null : () {
+                HapticFeedback.lightImpact();
+                onPressed?.call();
+              },
               style: OutlinedButton.styleFrom(
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                 ),
                 side: BorderSide(color: colorScheme.primary, width: 2),
               ),
               child: child,
             )
           : ElevatedButton(
-              onPressed: isLoading ? null : onPressed,
+              onPressed: isLoading ? null : () {
+                HapticFeedback.lightImpact();
+                onPressed?.call();
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                 ),
               ),
               child: child,

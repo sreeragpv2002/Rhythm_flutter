@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rhythm_flutter/core/network/dio_client.dart';
 import 'package:rhythm_flutter/features/home/data/models/music.dart';
@@ -16,12 +17,12 @@ class MusicRepository {
   /// Fetch detailed song info, including related songs and direct audio URL
   Future<Music> getMusicDetails(int id) async {
     try {
-      print('MusicRepository: Fetching details for $id');
+      debugPrint('MusicRepository: Fetching details for $id');
       // Some APIs use GET for details even if POST is used for streaming
       // But based on previous logs, we'll try POST first as requested
       final response = await _dio.post('music/$id/stream/');
 
-      print('MusicRepository: Response received: ${response.statusCode}');
+      debugPrint('MusicRepository: Response received: ${response.statusCode}');
 
       if (response.data['success'] == true) {
         final data = response.data['data'];
@@ -29,7 +30,7 @@ class MusicRepository {
       }
       throw Exception(response.data['message'] ?? 'Failed to load music details');
     } catch (e) {
-      print('MusicRepository: Error fetching details: $e');
+      debugPrint('MusicRepository: Error fetching details: $e');
       rethrow;
     }
   }
@@ -57,7 +58,7 @@ class MusicRepository {
       }
       return [];
     } catch (e) {
-      print('MusicRepository: Error fetching related songs: $e');
+      debugPrint('MusicRepository: Error fetching related songs: $e');
       return [];
     }
   }
@@ -68,7 +69,7 @@ class MusicRepository {
     try {
       if (query.isEmpty) return [];
       
-      print('MusicRepository: Searching for "$query"');
+      debugPrint('MusicRepository: Searching for "$query"');
       final response = await _dio.get('music/search/', queryParameters: {'q': query});
       
       if (response.statusCode == 200 && response.data['success'] == true) {
@@ -77,7 +78,7 @@ class MusicRepository {
       }
       return [];
     } catch (e) {
-      print('MusicRepository: Error searching music: $e');
+      debugPrint('MusicRepository: Error searching music: $e');
       return [];
     }
   }
@@ -88,12 +89,12 @@ class MusicRepository {
       final response = await _dio.post('music/$id/favorite/');
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
-        print('MusicRepository: Toggle favorite response: $data');
+        debugPrint('MusicRepository: Toggle favorite response: $data');
         return data['is_favorite'] ?? false;
       }
       throw Exception(response.data['message'] ?? 'Failed to toggle favorite');
     } catch (e) {
-      print('MusicRepository: Error toggling favorite: $e');
+      debugPrint('MusicRepository: Error toggling favorite: $e');
       rethrow;
     }
   }

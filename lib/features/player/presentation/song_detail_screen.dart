@@ -1,12 +1,18 @@
 import 'dart:math';
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:animate_do/animate_do.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
+import 'package:rhythm_flutter/core/theme/glass_decoration.dart';
+import 'package:rhythm_flutter/core/theme/spacing.dart';
+import 'package:rhythm_flutter/core/animations/app_animations.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
 import 'package:rhythm_flutter/core/services/audio_handler.dart';
+import 'package:rhythm_flutter/core/services/media_item_mapper.dart';
+import 'package:rhythm_flutter/core/widgets/music_list_tile.dart';
 import 'package:rhythm_flutter/features/home/data/models/music.dart';
 import 'package:rhythm_flutter/features/home/data/repositories/music_repository.dart';
 import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
@@ -27,8 +33,6 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _rotationController;
   bool _isLiked = false;
-  bool _isShuffle = false;
-  int _repeatMode = 0; // 0=off, 1=all, 2=one
   double? _dragValue;
   bool _isDragging = false;
 
@@ -45,10 +49,6 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
   void dispose() {
     _rotationController.dispose();
     super.dispose();
-  }
-
-  void _toggleRepeat() {
-    setState(() => _repeatMode = (_repeatMode + 1) % 3);
   }
 
   String _formatDuration(Duration d) {
@@ -76,33 +76,27 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
     // Listen for music details to trigger playback
     ref.listen<AsyncValue<Music>>(musicDetailsProvider(widget.initialMusicId), (prev, next) {
       if (next.isLoading) return;
-
       next.whenData((music) {
         final currentItem = ref.read(currentMediaItemProvider).value;
         final playbackState = ref.read(playbackStateProvider).value;
 
-        // Sync liked status
         if (_isLiked != music.isFavorited) {
           setState(() => _isLiked = music.isFavorited);
         }
 
-        // Load if it's not the song currently in the player, OR if it is but not playing
         if (currentItem?.id != music.id.toString()) {
-          debugPrint('SongDetailScreen: Triggering playback for new song ${music.id}');
           _playMusic(music, handler, locale);
         } else if (playbackState != null && !playbackState.playing) {
-          debugPrint('SongDetailScreen: Song already current but paused, calling play()');
           handler.play();
         }
       });
     });
 
-    // Manually handle initial data if it's already loaded
+    // Handle initial data if already loaded
     if (!musicAsync.isLoading && musicAsync.hasValue) {
       final music = musicAsync.value!;
       final currentItem = ref.read(currentMediaItemProvider).value;
       if (currentItem?.id != music.id.toString()) {
-        // We use WidgetsBinding to ensure we don't trigger playback mid-build
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             final playbackState = ref.read(playbackStateProvider).value;
@@ -126,60 +120,72 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
     });
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF1A0533), Color(0xFF0D0D1A), Color(0xFF0D0D1A)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
+        decoration: BoxDecoration(
+          gradient: Theme.of(context).brightness == Brightness.dark 
+              ? AppColors.playerGradient 
+              : AppColors.playerGradientLight,
         ),
         child: SafeArea(
           child: Column(
             children: [
-              // ── App bar ──
-              _buildAppBar(context),
-
-              // ── Scrollable body ──
+              _PlayerAppBar(onBack: () => Navigator.of(context).pop()),
               Expanded(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   child: Column(
                     children: [
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSpacing.md),
 
                       // ── Album Art ──
-                      _buildAlbumArt(mediaItemAsync, musicAsync, locale),
+                      _AlbumArtDisc(
+                        rotationController: _rotationController,
+                        mediaItemAsync: mediaItemAsync,
+                        musicAsync: musicAsync,
+                      ),
 
-                      const SizedBox(height: 32),
+                      const SizedBox(height: AppSpacing.xl),
 
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 28),
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl - 4),
                         child: Column(
                           children: [
                             // ── Title & Like ──
-                            _buildTitleRow(mediaItemAsync, colorScheme),
+                            _TitleRow(
+                              mediaItemAsync: mediaItemAsync,
+                              isLiked: _isLiked,
+                              onLikeToggle: () => _handleLikeToggle(ref),
+                            ),
 
-                            const SizedBox(height: 28),
+                            const SizedBox(height: AppSpacing.xl - 4),
 
                             // ── Seek bar ──
                             positionAsync.when(
-                              data: (pos) => _buildSeekBar(pos, handler, colorScheme),
-                              loading: () => _buildSeekBar(null, handler, colorScheme),
-                              error: (_, __) => const SizedBox(height: 48),
+                              data: (pos) => _SeekBar(
+                                positionData: pos,
+                                handler: handler,
+                                isDragging: _isDragging,
+                                dragValue: _dragValue,
+                                onDragStart: (v) => setState(() { _isDragging = true; _dragValue = v; }),
+                                onDragEnd: (v) {
+                                  if (pos.duration.inMilliseconds > 0) {
+                                    handler.seek(Duration(milliseconds: (v * pos.duration.inMilliseconds).round()));
+                                  }
+                                  setState(() { _isDragging = false; _dragValue = null; });
+                                },
+                                formatDuration: _formatDuration,
+                              ),
+                              loading: () => const SizedBox(height: AppSpacing.xxl),
+                              error: (_, __) => const SizedBox(height: AppSpacing.xxl),
                             ),
 
-                            const SizedBox(height: 20),
+                            const SizedBox(height: AppSpacing.lg - 4),
 
                             // ── Controls ──
-                            playbackAsync.when(
-                              data: (state) => _buildControls(state, handler, colorScheme),
-                              loading: () => _buildControls(null, handler, colorScheme),
-                              error: (_, __) => const SizedBox(height: 80),
-                            ),
+                            _PlayerControls(handler: handler, playbackAsync: playbackAsync),
 
-                            const SizedBox(height: 32),
+                            const SizedBox(height: AppSpacing.xl),
                           ],
                         ),
                       ),
@@ -188,16 +194,21 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
                       relatedAsync.when(
                         data: (songs) {
                           if (songs.isEmpty) return const SizedBox.shrink();
-                          return _buildRelatedSongs(songs, locale, colorScheme, handler);
+                          return _RelatedSongsList(
+                            songs: songs,
+                            locale: locale,
+                            handler: handler,
+                            formatDuration: _formatDuration,
+                          );
                         },
                         loading: () => const Padding(
-                          padding: EdgeInsets.all(24),
+                          padding: EdgeInsets.all(AppSpacing.lg),
                           child: Center(child: CircularProgressIndicator()),
                         ),
                         error: (_, __) => const SizedBox.shrink(),
                       ),
 
-                      const SizedBox(height: 40),
+                      const SizedBox(height: AppSpacing.xxl - 8),
                     ],
                   ),
                 ),
@@ -209,24 +220,55 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
     );
   }
 
-  // ────────────────────────────────────────────
-  //  Widgets
-  // ────────────────────────────────────────────
+  Future<void> _handleLikeToggle(WidgetRef ref) async {
+    final music = ref.read(musicDetailsProvider(widget.initialMusicId)).valueOrNull;
+    if (music == null) return;
 
-  Widget _buildAppBar(BuildContext context) {
+    setState(() => _isLiked = !_isLiked);
+
+    try {
+      final newStatus = await ref.read(musicRepositoryProvider).toggleFavorite(music.id);
+      if (mounted && _isLiked != newStatus) {
+        setState(() => _isLiked = newStatus);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLiked = !_isLiked);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+}
+
+// ════════════════════════════════════════════════
+//  Extracted Sub-Widgets
+// ════════════════════════════════════════════════
+
+/// Top bar with collapse and menu buttons.
+class _PlayerAppBar extends StatelessWidget {
+  final VoidCallback onBack;
+  const _PlayerAppBar({required this.onBack});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.expand_more_rounded, color: Colors.white, size: 32),
-            onPressed: () => Navigator.of(context).pop(),
+            icon: Icon(Icons.expand_more_rounded, color: textColor, size: AppSpacing.iconLg),
+            onPressed: onBack,
           ),
           const Spacer(),
           Text(
             context.l10n.nowPlaying,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: textColor,
               fontSize: 14,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.2,
@@ -234,53 +276,59 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
           ),
           const Spacer(),
           IconButton(
-            icon: const Icon(Icons.more_vert_rounded, color: Colors.white70),
+            icon: Icon(Icons.more_vert_rounded, color: textColor.withValues(alpha: 0.7)),
             onPressed: () {},
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildAlbumArt(
-      AsyncValue<MediaItem?> mediaItemAsync,
-      AsyncValue<dynamic> musicAsync,
-      String locale,
-      ) {
+/// Rotating album art disc with glassmorphism glow.
+class _AlbumArtDisc extends StatelessWidget {
+  final AnimationController rotationController;
+  final AsyncValue<MediaItem?> mediaItemAsync;
+  final AsyncValue<dynamic> musicAsync;
+
+  const _AlbumArtDisc({
+    required this.rotationController,
+    required this.mediaItemAsync,
+    required this.musicAsync,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final artUrl = mediaItemAsync.valueOrNull?.artUri?.toString() ??
         (musicAsync.valueOrNull?.thumbUrl);
+    final size = MediaQuery.of(context).size.width * 0.72;
 
-    return FadeInDown(
-      duration: const Duration(milliseconds: 600),
+    return FadeScaleIn(
+      duration: AppAnimations.entrance,
       child: AnimatedBuilder(
-        animation: _rotationController,
+        animation: rotationController,
         builder: (context, child) {
           return Transform.rotate(
-            angle: _rotationController.value * 2 * pi,
+            angle: rotationController.value * 2 * pi,
             child: child,
           );
         },
         child: Container(
-          width: MediaQuery.of(context).size.width * 0.72,
-          height: MediaQuery.of(context).size.width * 0.72,
+          width: size,
+          height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primaryDark.withValues(alpha: 0.45),
-                blurRadius: 40,
-                spreadRadius: 8,
-              ),
-            ],
+            boxShadow: GlassDecoration.glow(AppColors.primaryDark, intensity: 0.45),
           ),
           child: ClipOval(
             child: artUrl != null
                 ? CachedNetworkImage(
-              imageUrl: artUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => _albumPlaceholder(),
-              errorWidget: (_, __, ___) => _albumPlaceholder(),
-            )
+                    imageUrl: artUrl,
+                    fit: BoxFit.cover,
+                    memCacheWidth: (size * 2).toInt(),
+                    placeholder: (_, __) => _albumPlaceholder(),
+                    errorWidget: (_, __, ___) => _albumPlaceholder(),
+                  )
                 : _albumPlaceholder(),
           ),
         ),
@@ -296,9 +344,26 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
       ),
     );
   }
+}
 
-  Widget _buildTitleRow(AsyncValue<MediaItem?> mediaItemAsync, ColorScheme colorScheme) {
+/// Song title row with like button.
+class _TitleRow extends StatelessWidget {
+  final AsyncValue<MediaItem?> mediaItemAsync;
+  final bool isLiked;
+  final VoidCallback onLikeToggle;
+
+  const _TitleRow({
+    required this.mediaItemAsync,
+    required this.isLiked,
+    required this.onLikeToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final item = mediaItemAsync.valueOrNull;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -306,29 +371,29 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              FadeInUp(
-                duration: const Duration(milliseconds: 400),
+              SlideUpFadeIn(
+                duration: AppAnimations.normal,
                 child: Text(
                   item?.title ?? '—',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: textColor,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
-              FadeInUp(
+              const SizedBox(height: AppSpacing.xs),
+              SlideUpFadeIn(
                 delay: const Duration(milliseconds: 100),
-                duration: const Duration(milliseconds: 400),
+                duration: AppAnimations.normal,
                 child: Text(
                   item?.artist ?? '—',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.65),
+                    color: textColor.withValues(alpha: 0.65),
                     fontSize: 15,
                   ),
                 ),
@@ -336,38 +401,17 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
             ],
           ),
         ),
-        const SizedBox(width: 12),
-        FadeIn(
+        const SizedBox(width: AppSpacing.sm + 4),
+        FadeScaleIn(
           delay: const Duration(milliseconds: 200),
           child: GestureDetector(
-            onTap: () async {
-              final music = ref.read(musicDetailsProvider(widget.initialMusicId)).valueOrNull;
-              if (music == null) return;
-              
-              // Optimistic UI update
-              setState(() => _isLiked = !_isLiked);
-              
-              try {
-                final newStatus = await ref.read(musicRepositoryProvider).toggleFavorite(music.id);
-                if (mounted && _isLiked != newStatus) {
-                  setState(() => _isLiked = newStatus);
-                }
-              } catch (e) {
-                // Revert on error
-                if (mounted) {
-                  setState(() => _isLiked = !_isLiked);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
-                }
-              }
-            },
+            onTap: onLikeToggle,
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
+              duration: AppAnimations.fast,
               child: Icon(
-                _isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                key: ValueKey(_isLiked),
-                color: _isLiked ? const Color(0xFFFF6B6B) : Colors.white54,
+                isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                key: ValueKey(isLiked),
+                color: isLiked ? const Color(0xFFFF6B6B) : textColor.withValues(alpha: 0.54),
                 size: 28,
               ),
             ),
@@ -376,36 +420,58 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
       ],
     );
   }
+}
 
-  Widget _buildSeekBar(PositionData? pos, dynamic handler, ColorScheme colorScheme) {
-    final position = pos?.position ?? Duration.zero;
-    final duration = pos?.duration ?? Duration.zero;
-    final buffered = pos?.bufferedPosition ?? Duration.zero;
+/// Seek bar with buffered progress and drag support.
+class _SeekBar extends StatelessWidget {
+  final PositionData positionData;
+  final RhythmAudioHandler handler;
+  final bool isDragging;
+  final double? dragValue;
+  final ValueChanged<double> onDragStart;
+  final ValueChanged<double> onDragEnd;
+  final String Function(Duration) formatDuration;
+
+  const _SeekBar({
+    required this.positionData,
+    required this.handler,
+    required this.isDragging,
+    required this.dragValue,
+    required this.onDragStart,
+    required this.onDragEnd,
+    required this.formatDuration,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final position = positionData.position;
+    final duration = positionData.duration;
+    final buffered = positionData.bufferedPosition;
 
     final progress = duration.inMilliseconds > 0
         ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
         : 0.0;
-
     final bufferedProgress = duration.inMilliseconds > 0
         ? (buffered.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
         : 0.0;
+    final sliderValue = isDragging ? dragValue ?? progress : progress;
 
-    // Only use _dragValue if user is actively dragging
-    final sliderValue = _isDragging ? _dragValue ?? progress : progress;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
 
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 4),
           child: Stack(
             alignment: Alignment.centerLeft,
             children: [
-              // Buffered bar (behind)
+              // Buffered bar
               Container(
                 height: 4,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(2),
-                  color: Colors.white.withValues(alpha: 0.12),
+                  color: textColor.withValues(alpha: 0.12),
                 ),
                 alignment: Alignment.centerLeft,
                 child: FractionallySizedBox(
@@ -413,67 +479,43 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(2),
-                      color: Colors.white.withValues(alpha: 0.25),
+                      color: textColor.withValues(alpha: 0.25),
                     ),
                   ),
                 ),
               ),
-              // Seek slider (on top)
+              // Seek slider
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
-                  activeTrackColor: AppColors.primaryDark,
+                  activeTrackColor: isDark ? AppColors.primaryDark : AppColors.primaryLight,
                   inactiveTrackColor: Colors.transparent,
-                  thumbColor: Colors.white,
+                  thumbColor: textColor,
                   thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
                   trackHeight: 4,
-                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                  overlayShape: const RoundSliderOverlayShape(overlayRadius: AppSpacing.md),
                 ),
                 child: Slider(
                   value: sliderValue.clamp(0.0, 1.0),
-                  onChanged: (value) {
-                    setState(() {
-                      _isDragging = true;
-                      _dragValue = value;
-                    });
-                  },
-                  onChangeEnd: (value) {
-                    if (duration.inMilliseconds > 0) {
-                      final seekPosition = Duration(
-                        milliseconds: (value * duration.inMilliseconds).round(),
-                      );
-                      handler.seek(seekPosition);
-                    }
-                    setState(() {
-                      _isDragging = false;
-                      _dragValue = null;
-                    });
-                  },
+                  onChanged: onDragStart,
+                  onChangeEnd: onDragEnd,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                _formatDuration(position),
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
+                formatDuration(position),
+                style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 12, fontWeight: FontWeight.w500),
               ),
               Text(
-                _formatDuration(duration),
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
+                formatDuration(duration),
+                style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 12, fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -481,9 +523,29 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
       ],
     );
   }
+}
 
-  Widget _buildControls(PlaybackState? state, dynamic handler, ColorScheme colorScheme) {
-    final isPlaying = state?.playing ?? false;
+/// Main playback controls with shuffle/repeat wired to the audio handler.
+class _PlayerControls extends ConsumerWidget {
+  final RhythmAudioHandler handler;
+  final AsyncValue<PlaybackState> playbackAsync;
+
+  const _PlayerControls({
+    required this.handler,
+    required this.playbackAsync,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isPlaying = playbackAsync.valueOrNull?.playing ?? false;
+    final shuffleAsync = ref.watch(shuffleModeProvider);
+    final loopAsync = ref.watch(loopModeProvider);
+
+    final isShuffle = shuffleAsync.valueOrNull ?? false;
+    final repeatMode = loopAsync.valueOrNull ?? AudioServiceRepeatMode.none;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = isDark ? Colors.white : Colors.black87;
 
     return Column(
       children: [
@@ -491,80 +553,74 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Shuffle toggle
             GestureDetector(
-              onTap: () => setState(() => _isShuffle = !_isShuffle),
+              onTap: () => handler.setShuffleEnabled(!isShuffle),
               child: Icon(
                 Icons.shuffle_rounded,
-                color: _isShuffle ? AppColors.primaryDark : Colors.white38,
-                size: 24,
+                color: isShuffle
+                    ? (isDark ? AppColors.primaryDark : AppColors.primaryLight)
+                    : iconColor.withValues(alpha: 0.38),
+                size: AppSpacing.iconMd,
               ),
             ),
-            // Repeat toggle
             GestureDetector(
-              onTap: _toggleRepeat,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(
-                    _repeatMode == 2
-                        ? Icons.repeat_one_rounded
-                        : Icons.repeat_rounded,
-                    color: _repeatMode > 0 ? AppColors.primaryDark : Colors.white38,
-                    size: 24,
-                  ),
-                ],
+              onTap: () {
+                final nextMode = switch (repeatMode) {
+                  AudioServiceRepeatMode.none => AudioServiceRepeatMode.all,
+                  AudioServiceRepeatMode.all => AudioServiceRepeatMode.one,
+                  _ => AudioServiceRepeatMode.none,
+                };
+                handler.setRepeatMode(nextMode);
+              },
+              child: Icon(
+                repeatMode == AudioServiceRepeatMode.one
+                    ? Icons.repeat_one_rounded
+                    : Icons.repeat_rounded,
+                color: repeatMode != AudioServiceRepeatMode.none
+                    ? (isDark ? AppColors.primaryDark : AppColors.primaryLight)
+                    : iconColor.withValues(alpha: 0.38),
+                size: AppSpacing.iconMd,
               ),
             ),
           ],
         ),
+        
+        const SizedBox(height: AppSpacing.lg),
 
-        const SizedBox(height: 24),
-
-        // Main controls row ⏮ ⏸/▶ ⏭
+        // Main controls: ⏮ ⏸/▶ ⏭
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Previous
             _ControlButton(
               icon: Icons.skip_previous_rounded,
-              size: 48,
-              color: Colors.white,
-              onTap: () => handler.skipToPrevious(),
+              size: AppSpacing.iconXl,
+              color: iconColor,
+              onTap: handler.skipToPrevious,
             ),
+            const SizedBox(width: AppSpacing.lg - 4),
 
-            const SizedBox(width: 20),
-
-            // Play / Pause (big circle button)
+            // Play / Pause (big circle)
             GestureDetector(
-              onTap: () {
-                if (isPlaying) {
-                  handler.pause();
-                } else {
-                  handler.play();
-                }
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+              onTap: () => isPlaying ? handler.pause() : handler.play(),
+              child: Container(
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primaryDark, Color(0xFF6C5CE7)],
+                  gradient: LinearGradient(
+                    colors: isDark 
+                        ? [AppColors.primaryDark, const Color(0xFF6C5CE7)]
+                        : [AppColors.primaryLight, const Color(0xFF9B8DFF)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryDark.withValues(alpha: 0.5),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                    ),
-                  ],
+                  boxShadow: GlassDecoration.glow(
+                    isDark ? AppColors.primaryDark : AppColors.primaryLight, 
+                    intensity: 0.5,
+                  ),
                 ),
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
+                  duration: AppAnimations.fast + const Duration(milliseconds: 50),
                   child: Icon(
                     isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                     key: ValueKey(isPlaying),
@@ -575,31 +631,48 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
               ),
             ),
 
-            const SizedBox(width: 20),
-
-            // Next
+            const SizedBox(width: AppSpacing.lg - 4),
             _ControlButton(
               icon: Icons.skip_next_rounded,
-              size: 48,
-              color: Colors.white,
-              onTap: () => handler.skipToNext(),
+              size: AppSpacing.iconXl,
+              color: iconColor,
+              onTap: handler.skipToNext,
             ),
           ],
         ),
       ],
     );
   }
+}
 
-  Widget _buildRelatedSongs(List<dynamic> songs, String locale, ColorScheme colorScheme, dynamic handler) {
+/// Related songs section using shared MusicListTile.
+class _RelatedSongsList extends StatelessWidget {
+  final List<dynamic> songs;
+  final String locale;
+  final RhythmAudioHandler handler;
+  final String Function(Duration) formatDuration;
+
+  const _RelatedSongsList({
+    required this.songs,
+    required this.locale,
+    required this.handler,
+    required this.formatDuration,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm + 4),
           child: Text(
             context.l10n.upNext,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: textColor,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -608,43 +681,18 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           itemCount: songs.length,
           itemBuilder: (context, index) {
             final song = songs[index];
-            return FadeInUp(
-              delay: Duration(milliseconds: index * 60),
-              duration: const Duration(milliseconds: 300),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                leading: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: song.thumbUrl != null
-                      ? CachedNetworkImage(
-                    imageUrl: song.thumbUrl!,
-                    width: 52,
-                    height: 52,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => _relatedPlaceholder(),
-                  )
-                      : _relatedPlaceholder(),
-                ),
-                title: Text(
-                  song.getDisplayTitle(locale),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
-                ),
-                subtitle: Text(
-                  song.getDisplayArtists(locale),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 12),
-                ),
-                trailing: Text(
-                  _formatDuration(Duration(seconds: song.duration)),
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
-                ),
+            return SlideUpFadeIn(
+              delay: AppAnimations.stagger(index, baseMs: 60),
+              duration: AppAnimations.normal,
+              child: MusicListTile(
+                title: song.getDisplayTitle(locale),
+                subtitle: song.getDisplayArtists(locale),
+                imageUrl: song.thumbUrl,
+                trailing: formatDuration(Duration(seconds: song.duration)),
                 onTap: () {
                   final mediaItem = musicToMediaItem(song, locale);
                   handler.loadPlaylist([mediaItem]);
@@ -656,20 +704,9 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
       ],
     );
   }
-
-  Widget _relatedPlaceholder() {
-    return Container(
-      width: 52,
-      height: 52,
-      color: AppColors.surfaceDark,
-      child: const Icon(Icons.music_note_rounded, color: AppColors.primaryDark, size: 24),
-    );
-  }
 }
 
-// ────────────────────────────────────────────
-// Small reusable control button
-// ────────────────────────────────────────────
+/// Small reusable control button.
 class _ControlButton extends StatelessWidget {
   final IconData icon;
   final double size;
@@ -685,13 +722,16 @@ class _ControlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: surfaceColor,
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: color, size: size * 0.6),

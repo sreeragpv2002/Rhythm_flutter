@@ -10,6 +10,7 @@ import 'package:rhythm_flutter/features/home/presentation/home_tab.dart';
 import 'package:rhythm_flutter/features/search/presentation/search_tab.dart';
 import 'package:rhythm_flutter/features/settings/presentation/settings_tab.dart';
 import 'package:rhythm_flutter/features/player/presentation/song_detail_screen.dart';
+import 'package:rhythm_flutter/features/home/presentation/section_detail_screen.dart';
 import 'package:flutter/material.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -55,6 +56,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final musicId = int.tryParse(state.pathParameters['musicId'] ?? '');
               return SongDetailScreen(initialMusicId: musicId ?? 0);
+            },
+          ),
+          GoRoute(
+            path: '/section/:slug',
+            builder: (context, state) {
+              final slug = state.pathParameters['slug'] ?? '';
+              final title = state.extra as String? ?? '';
+              return SectionDetailScreen(slug: slug, title: title);
             },
           ),
         ],

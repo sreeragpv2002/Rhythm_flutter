@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:rhythm_flutter/core/theme/spacing.dart';
 
+/// Styled text field using the design system's 8pt spacing grid.
 class AppTextField extends StatelessWidget {
   final TextEditingController? controller;
   final String? hintText;
@@ -40,7 +42,13 @@ class AppTextField extends StatelessWidget {
         hintText: hintText,
         labelText: labelText,
         prefixIcon: prefixIcon != null
-            ? Icon(prefixIcon, size: 22)
+            ? Padding(
+                padding: const EdgeInsets.only(left: AppSpacing.md, right: AppSpacing.sm),
+                child: Icon(prefixIcon, size: 22),
+              )
+            : null,
+        prefixIconConstraints: prefixIcon != null
+            ? const BoxConstraints(minWidth: 0, minHeight: 0)
             : null,
         suffixIcon: suffixIcon,
       ),

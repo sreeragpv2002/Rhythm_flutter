@@ -4,11 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'app.dart';
-import 'core/services/audio_handler.dart';
-import 'core/services/storage_service.dart';
-import 'core/config/app_config.dart';
-import 'features/player/providers/audio_provider.dart';
+import 'package:rhythm_flutter/app.dart';
+import 'package:rhythm_flutter/core/services/audio_handler.dart';
+import 'package:rhythm_flutter/core/services/storage_service.dart';
+import 'package:rhythm_flutter/core/config/app_config.dart';
+import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
 
 void main() async {
   debugPrint('Main: Starting application');

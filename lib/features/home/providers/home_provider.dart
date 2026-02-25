@@ -1,6 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import '../data/models/home_feed.dart';
-import '../data/repositories/home_repository.dart';
+import 'package:rhythm_flutter/features/home/data/models/home_feed.dart';
+import 'package:rhythm_flutter/features/home/data/repositories/home_repository.dart';
 
 part 'home_provider.g.dart';
 

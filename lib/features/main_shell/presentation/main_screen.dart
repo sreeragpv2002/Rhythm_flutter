@@ -1,81 +1,96 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/extensions/context_extensions.dart';
-import '../../player/presentation/mini_player.dart';
+import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
+import 'package:rhythm_flutter/core/theme/app_colors.dart';
+import 'package:rhythm_flutter/core/theme/glass_decoration.dart';
+import 'package:rhythm_flutter/core/theme/spacing.dart';
+import 'package:rhythm_flutter/features/player/presentation/mini_player.dart';
 
-class MainScreen extends ConsumerWidget {
+/// Main shell with bottom navigation and glassmorphism mini-player.
+class MainScreen extends ConsumerStatefulWidget {
   final Widget child;
-
-  const MainScreen({
-    super.key,
-    required this.child,
-  });
-
-  int _calculateSelectedIndex(BuildContext context) {
-    final String location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith('/search')) return 1;
-    if (location.startsWith('/settings')) return 2;
-    return 0;
-  }
-
-  void _onItemTapped(int index, BuildContext context) {
-    switch (index) {
-      case 0:
-        context.go('/');
-        break;
-      case 1:
-        context.go('/search');
-        break;
-      case 2:
-        context.go('/settings');
-        break;
-    }
-  }
+  const MainScreen({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends ConsumerState<MainScreen> {
+  int _currentIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      body: child,
+      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      body: widget.child,
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Mini player above the navigation bar
+          // ── Mini Player ──
           const MiniPlayer(),
-          Container(
-            decoration: BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
+
+          // ── Glassmorphism Nav Bar ──
+          ClipRect(
+            child: BackdropFilter(
+              filter: GlassDecoration.blur(),
+              child: Container(
+                height: AppSpacing.bottomNavHeight,
+                decoration: GlassDecoration.surface(context),
+                child: BottomNavigationBar(
+                  currentIndex: _currentIndex,
+                  onTap: _onTabTapped,
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  type: BottomNavigationBarType.fixed,
+                  selectedFontSize: 11,
+                  unselectedFontSize: 11,
+                  selectedItemColor: isDark
+                      ? AppColors.primaryDark
+                      : AppColors.primaryLight,
+                  unselectedItemColor: isDark
+                      ? Colors.white.withValues(alpha: 0.4)
+                      : Colors.black.withValues(alpha: 0.35),
+                  items: [
+                    BottomNavigationBarItem(
+                      icon: const Icon(Icons.home_rounded),
+                      activeIcon: const Icon(Icons.home_rounded),
+                      label: context.l10n.home,
+                    ),
+                    BottomNavigationBarItem(
+                      icon: const Icon(Icons.search_rounded),
+                      activeIcon: const Icon(Icons.search_rounded),
+                      label: context.l10n.search,
+                    ),
+                    BottomNavigationBarItem(
+                      icon: const Icon(Icons.settings_rounded),
+                      activeIcon: const Icon(Icons.settings_rounded),
+                      label: context.l10n.settings,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: BottomNavigationBar(
-              currentIndex: _calculateSelectedIndex(context),
-              onTap: (index) => _onItemTapped(index, context),
-              items: [
-                BottomNavigationBarItem(
-                  icon: const Icon(Icons.home_outlined),
-                  activeIcon: const Icon(Icons.home_filled),
-                  label: context.l10n.home,
-                ),
-                BottomNavigationBarItem(
-                  icon: const Icon(Icons.search_rounded),
-                  activeIcon: const Icon(Icons.search_rounded),
-                  label: context.l10n.search,
-                ),
-                BottomNavigationBarItem(
-                  icon: const Icon(Icons.settings_outlined),
-                  activeIcon: const Icon(Icons.settings),
-                  label: context.l10n.settings,
-                ),
-              ],
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  void _onTabTapped(int index) {
+    if (index == _currentIndex) return;
+    setState(() => _currentIndex = index);
+
+    switch (index) {
+      case 0:
+        context.go('/home');
+      case 1:
+        context.go('/search');
+      case 2:
+        context.go('/settings');
+    }
   }
 }

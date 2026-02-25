@@ -164,4 +164,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get upNext => 'Up Next';
+
+  @override
+  String get viewAll => 'View All';
 }

@@ -51,5 +51,6 @@
   "version": "Version",
   "splashSubtitle": "Your world of music awaits",
   "nowPlaying": "Now Playing",
-  "upNext": "Up Next"
+  "upNext": "Up Next",
+  "viewAll": "View All"
 }

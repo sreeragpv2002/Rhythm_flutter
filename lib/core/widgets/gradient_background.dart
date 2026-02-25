@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+import 'package:rhythm_flutter/core/theme/app_colors.dart';
 
+/// Full-screen gradient background container.
+///
+/// Adapts between light and dark palettes automatically.
+/// Use [useSplashGradient] for the splash/onboarding screens.
 class GradientBackground extends StatelessWidget {
   final Widget child;
   final bool useSplashGradient;
@@ -20,22 +24,8 @@ class GradientBackground extends StatelessWidget {
         gradient: useSplashGradient
             ? AppColors.splashGradient
             : isDark
-                ? const LinearGradient(
-                    colors: [
-                      AppColors.backgroundDark,
-                      Color(0xFF121228),
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  )
-                : const LinearGradient(
-                    colors: [
-                      AppColors.backgroundLight,
-                      Color(0xFFEDE9FE),
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
+                ? AppColors.backgroundGradientDark
+                : AppColors.backgroundGradientLight,
       ),
       child: child,
     );

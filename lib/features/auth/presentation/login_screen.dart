@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:animate_do/animate_do.dart';
-import '../../../core/extensions/context_extensions.dart';
-import '../../../core/utils/app_utils.dart';
-import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/app_text_field.dart';
-import '../../../core/widgets/gradient_background.dart';
-import '../providers/auth_provider.dart';
-import '../../../shared/providers/locale_provider.dart';
+import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
+import 'package:rhythm_flutter/core/utils/app_utils.dart';
+import 'package:rhythm_flutter/core/widgets/app_button.dart';
+import 'package:rhythm_flutter/core/widgets/app_text_field.dart';
+import 'package:rhythm_flutter/core/widgets/gradient_background.dart';
+import 'package:rhythm_flutter/features/auth/providers/auth_provider.dart';
+import 'package:rhythm_flutter/shared/providers/locale_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});

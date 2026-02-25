@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../l10n/app_localizations.dart';
+import 'package:rhythm_flutter/l10n/app_localizations.dart';
 
 extension ContextExtensions on BuildContext {
   /// Quick access to localizations: `context.l10n.appName`

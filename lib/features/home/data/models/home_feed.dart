@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'music.dart';
+import 'package:rhythm_flutter/features/home/data/models/music.dart';
 
 part 'home_feed.freezed.dart';
 part 'home_feed.g.dart';
@@ -15,6 +15,11 @@ class HomeSection with _$HomeSection {
   factory HomeSection.fromJson(Map<String, dynamic> json) => _$HomeSectionFromJson(json);
 }
 
+extension HomeSectionX on HomeSection {
+  String getDisplayTitle(String locale) => title;
+  List<int> get musicIds => items;
+}
+
 @freezed
 class HomeFeed with _$HomeFeed {
   const factory HomeFeed({
@@ -23,4 +28,8 @@ class HomeFeed with _$HomeFeed {
   }) = _HomeFeed;
 
   factory HomeFeed.fromJson(Map<String, dynamic> json) => _$HomeFeedFromJson(json);
+}
+
+extension HomeFeedX on HomeFeed {
+  Music? getMusicById(int id) => musicMap[id.toString()];
 }

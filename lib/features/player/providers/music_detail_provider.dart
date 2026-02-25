@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../home/data/models/music.dart';
-import '../../home/data/repositories/music_repository.dart';
+import 'package:rhythm_flutter/features/home/data/models/music.dart';
+import 'package:rhythm_flutter/features/home/data/repositories/music_repository.dart';
 
 
 /// Fetch single music details

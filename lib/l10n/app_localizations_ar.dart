@@ -163,4 +163,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get upNext => 'التالي';
+
+  @override
+  String get viewAll => 'عرض الكل';
 }

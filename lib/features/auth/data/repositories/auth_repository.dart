@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/network/dio_client.dart';
-import '../models/auth_models.dart';
+import 'package:rhythm_flutter/core/network/dio_client.dart';
+import 'package:rhythm_flutter/features/auth/data/models/auth_models.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final dio = ref.watch(dioProvider);

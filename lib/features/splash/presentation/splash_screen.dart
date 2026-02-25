@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../../core/extensions/context_extensions.dart';
-import '../../../core/widgets/gradient_background.dart';
+import 'package:rhythm_flutter/core/constants/app_constants.dart';
+import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
+import 'package:rhythm_flutter/core/widgets/gradient_background.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
