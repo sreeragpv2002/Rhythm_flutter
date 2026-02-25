@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rhythm_flutter/core/animations/app_animations.dart';
@@ -139,7 +140,7 @@ class HomeTab extends ConsumerWidget {
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.md,
                           ),
-                          itemCount: section.musicIds.length,
+                          itemCount: math.min(8, section.musicIds.length),
                           itemBuilder: (context, index) {
                             final music = feed.getMusicById(section.musicIds[index]);
                             if (music == null) return const SizedBox.shrink();
@@ -149,7 +150,7 @@ class HomeTab extends ConsumerWidget {
                               duration: AppAnimations.normal,
                               child: Padding(
                                 padding: EdgeInsets.only(
-                                  right: index != section.musicIds.length - 1
+                                  right: index != math.min(8, section.musicIds.length) - 1
                                       ? AppSpacing.sm + 4
                                       : 0,
                                 ),
