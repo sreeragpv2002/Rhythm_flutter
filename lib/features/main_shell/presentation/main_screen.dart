@@ -65,11 +65,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                       activeIcon: const Icon(Icons.search_rounded),
                       label: context.l10n.search,
                     ),
-                    BottomNavigationBarItem(
-                      icon: const Icon(Icons.library_music_rounded),
-                      activeIcon: const Icon(Icons.library_music_rounded),
-                      label: context.l10n.library,
-                    ),
+                    // BottomNavigationBarItem(
+                    //   icon: const Icon(Icons.library_music_rounded),
+                    //   activeIcon: const Icon(Icons.library_music_rounded),
+                    //   label: context.l10n.library,
+                    // ),
                     BottomNavigationBarItem(
                       icon: const Icon(Icons.settings_rounded),
                       activeIcon: const Icon(Icons.settings_rounded),
@@ -94,9 +94,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         context.go('/');
       case 1:
         context.go('/search');
+      // case 2:
+      //   context.go('/library');
       case 2:
-        context.go('/library');
-      case 3:
         context.go('/settings');
     }
   }

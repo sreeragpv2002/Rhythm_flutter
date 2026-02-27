@@ -79,15 +79,9 @@ class SectionDetailScreen extends ConsumerWidget {
                           music: music,
                           locale: locale,
                           isFavorite: ref.watch(favoritesProvider).contains(music.id),
-                          onFavoriteToggle: () async {
-                            await ref.read(favoritesProvider.notifier).toggleFavorite(music);
-                            // Update audio handler if this is the current song
-                            final currentMedia = ref.read(audioHandlerProvider).mediaItem.value;
-                            if (currentMedia?.id == music.id.toString()) {
-                              final isLiked = ref.read(favoritesProvider).contains(music.id);
-                              ref.read(audioHandlerProvider).updateMediaItemFavorite(music.id.toString(), isLiked);
-                            }
-                          },
+                          onFavoriteToggle: () => ref
+                              .read(favoritesProvider.notifier)
+                              .toggleFavorite(music.id),
                           onTap: () {
                             final handler = ref.read(audioHandlerProvider);
                             final sectionMusic = section.musicIds

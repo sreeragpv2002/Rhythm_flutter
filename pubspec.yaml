@@ -31,6 +31,7 @@ dependencies:
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0
   flutter_dotenv: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -41,9 +42,21 @@ dev_dependencies:
   json_serializable: ^6.9.4
   riverpod_generator: ^2.6.4
 
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/rhythm_icon.png"
+
+flutter_native_splash:
+  color: "#6C5CE7"
+  android: true
+  ios: true
+
 flutter:
   generate: true
   uses-material-design: true
 
   assets:
     - .env
+    - assets/icon/rhythm_icon.png
+

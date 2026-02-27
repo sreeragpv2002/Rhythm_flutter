@@ -87,7 +87,7 @@ class LibraryTab extends ConsumerWidget {
                             subtitle: song.getDisplayArtists(locale),
                             imageUrl: song.thumbUrl,
                             isFavorite: true,
-                            onFavoriteToggle: () => ref.read(favoritesProvider.notifier).toggleFavorite(song),
+                            onFavoriteToggle: () => ref.read(favoritesProvider.notifier).toggleFavorite(song.id),
                             onTap: () {
                               final handler = ref.read(audioHandlerProvider);
                               final mediaItems = favoriteSongs

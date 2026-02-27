@@ -85,10 +85,13 @@ class MusicRepository {
   Future<bool> toggleFavorite(int id) async {
     try {
       final response = await _dio.post('music/$id/favorite/');
+      debugPrint('MusicRepository: Toggle favorite status=${response.statusCode}, body=${response.data}');
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
-        debugPrint('MusicRepository: Toggle favorite response: $data');
-        return data['is_favorite'] ?? false;
+        // API may return either 'is_favorite' or 'is_favorited'
+        final result = data['is_favorite'] ?? data['is_favorited'] ?? data['favorited'] ?? false;
+        debugPrint('MusicRepository: Toggle favorite result=$result');
+        return result as bool;
       }
       throw Exception(response.data['message'] ?? 'Failed to toggle favorite');
     } catch (e) {

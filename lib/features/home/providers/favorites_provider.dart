@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:rhythm_flutter/features/home/data/models/music.dart';
 import 'package:rhythm_flutter/features/home/data/repositories/music_repository.dart';
@@ -20,14 +21,15 @@ class Favorites extends _$Favorites {
     state = {...state, ...favoritedIds};
   }
 
-  /// Toggle favorite status via API and update local state
-  Future<void> toggleFavorite(Music music) async {
+  /// Toggle favorite status via API and update local state.
+  /// Accepts just the music ID \u2014 no need for the full Music object.
+  Future<void> toggleFavorite(int id) async {
     final repository = ref.read(musicRepositoryProvider);
-    final id = music.id;
     
     // Optimistic UI update
     final set = Set<int>.from(state);
     final isCurrentlyLiked = set.contains(id);
+    debugPrint('💚 toggleFavorite: id=$id, isCurrentlyLiked=$isCurrentlyLiked');
     
     if (isCurrentlyLiked) {
       set.remove(id);
@@ -35,9 +37,11 @@ class Favorites extends _$Favorites {
       set.add(id);
     }
     state = set;
+    debugPrint('💚 toggleFavorite: optimistic state updated to $state');
 
     try {
       final isLiked = await repository.toggleFavorite(id);
+      debugPrint('💚 toggleFavorite: API returned isLiked=$isLiked');
       
       // Update state with actual response if different
       final finalSet = Set<int>.from(state);
@@ -47,7 +51,9 @@ class Favorites extends _$Favorites {
         finalSet.remove(id);
       }
       state = finalSet;
+      debugPrint('💚 toggleFavorite: final state=$state');
     } catch (e) {
+      debugPrint('💚 toggleFavorite: API error=$e, reverting');
       // Revert on error
       final revertSet = Set<int>.from(state);
       if (isCurrentlyLiked) {

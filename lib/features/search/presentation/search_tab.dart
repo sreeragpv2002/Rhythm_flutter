@@ -135,7 +135,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
                             imageUrl: song.thumbUrl,
                             isFavorite: ref.watch(favoritesProvider).contains(song.id),
                             onFavoriteToggle: () async {
-                              await ref.read(favoritesProvider.notifier).toggleFavorite(song);
+                              await ref.read(favoritesProvider.notifier).toggleFavorite(song.id);
                               // Update audio handler if this is the current song
                               final currentMedia = ref.read(audioHandlerProvider).mediaItem.value;
                               if (currentMedia?.id == song.id.toString()) {
