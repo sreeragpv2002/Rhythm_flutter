@@ -14,10 +14,16 @@ import 'package:rhythm_flutter/features/home/presentation/section_detail_screen.
 import 'package:rhythm_flutter/features/home/presentation/library_tab.dart';
 import 'package:flutter/material.dart';
 
+final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final _homeNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'home');
+final _searchNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'search');
+final _settingsNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'settings');
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
 
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: '/splash',
     debugLogDiagnostics: true,
     routes: [
@@ -37,39 +43,67 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/profile-creation',
         builder: (context, state) => const ProfileCreationScreen(),
       ),
-      ShellRoute(
-        builder: (context, state, child) => MainScreen(child: child),
-        routes: [
-          GoRoute(
-            path: '/',
-            builder: (context, state) => const HomeTab(),
-          ),
-          GoRoute(
-            path: '/search',
-            builder: (context, state) => const SearchTab(),
-          ),
-          GoRoute(
-            path: '/library',
-            builder: (context, state) => const LibraryTab(),
-          ),
-          GoRoute(
-            path: '/settings',
-            builder: (context, state) => const SettingsTab(),
-          ),
-          GoRoute(
-            path: '/player/:musicId',
-            builder: (context, state) {
-              final musicId = int.tryParse(state.pathParameters['musicId'] ?? '');
-              return SongDetailScreen(initialMusicId: musicId ?? 0);
+      GoRoute(
+        path: '/player/:musicId',
+        pageBuilder: (context, state) {
+          final musicId = int.tryParse(state.pathParameters['musicId'] ?? '');
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: SongDetailScreen(initialMusicId: musicId ?? 0),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(0.0, 1.0);
+              const end = Offset.zero;
+              const curve = Curves.easeInOutCubic;
+              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
             },
+          );
+        },
+      ),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return MainScreen(navigationShell: navigationShell);
+        },
+        branches: [
+          StatefulShellBranch(
+            navigatorKey: _homeNavigatorKey,
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (context, state) => const HomeTab(),
+                routes: [
+                  GoRoute(
+                    path: 'section/:slug',
+                    builder: (context, state) {
+                      final slug = state.pathParameters['slug'] ?? '';
+                      final title = state.extra as String? ?? '';
+                      return SectionDetailScreen(slug: slug, title: title);
+                    },
+                  ),
+                ],
+              ),
+            ],
           ),
-          GoRoute(
-            path: '/section/:slug',
-            builder: (context, state) {
-              final slug = state.pathParameters['slug'] ?? '';
-              final title = state.extra as String? ?? '';
-              return SectionDetailScreen(slug: slug, title: title);
-            },
+          StatefulShellBranch(
+            navigatorKey: _searchNavigatorKey,
+            routes: [
+              GoRoute(
+                path: '/search',
+                builder: (context, state) => const SearchTab(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: _settingsNavigatorKey,
+            routes: [
+              GoRoute(
+                path: '/settings',
+                builder: (context, state) => const SettingsTab(),
+              ),
+            ],
           ),
         ],
       ),

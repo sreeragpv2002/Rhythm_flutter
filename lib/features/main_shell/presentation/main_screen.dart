@@ -10,23 +10,21 @@ import 'package:rhythm_flutter/features/player/presentation/mini_player.dart';
 
 /// Main shell with bottom navigation and glassmorphism mini-player.
 class MainScreen extends ConsumerStatefulWidget {
-  final Widget child;
-  const MainScreen({super.key, required this.child});
+  final StatefulNavigationShell navigationShell;
+  const MainScreen({super.key, required this.navigationShell});
 
   @override
   ConsumerState<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends ConsumerState<MainScreen> {
-  int _currentIndex = 0;
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      body: widget.child,
+      body: widget.navigationShell,
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -41,7 +39,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 height: AppSpacing.bottomNavHeight,
                 decoration: GlassDecoration.surface(context),
                 child: BottomNavigationBar(
-                  currentIndex: _currentIndex,
+                  currentIndex: widget.navigationShell.currentIndex,
                   onTap: _onTabTapped,
                   backgroundColor: Colors.transparent,
                   elevation: 0,
@@ -65,11 +63,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                       activeIcon: const Icon(Icons.search_rounded),
                       label: context.l10n.search,
                     ),
-                    // BottomNavigationBarItem(
-                    //   icon: const Icon(Icons.library_music_rounded),
-                    //   activeIcon: const Icon(Icons.library_music_rounded),
-                    //   label: context.l10n.library,
-                    // ),
                     BottomNavigationBarItem(
                       icon: const Icon(Icons.settings_rounded),
                       activeIcon: const Icon(Icons.settings_rounded),
@@ -86,18 +79,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   void _onTabTapped(int index) {
-    if (index == _currentIndex) return;
-    setState(() => _currentIndex = index);
-
-    switch (index) {
-      case 0:
-        context.go('/');
-      case 1:
-        context.go('/search');
-      // case 2:
-      //   context.go('/library');
-      case 2:
-        context.go('/settings');
-    }
+    widget.navigationShell.goBranch(
+      index,
+      initialLocation: index == widget.navigationShell.currentIndex,
+    );
   }
 }

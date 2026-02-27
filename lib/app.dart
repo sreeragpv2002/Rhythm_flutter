@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rhythm_flutter/core/config/app_config.dart';
 import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
 import 'package:rhythm_flutter/l10n/app_localizations.dart';
 import 'package:rhythm_flutter/core/router/app_router.dart';
@@ -17,12 +18,18 @@ class RhythmApp extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     final themeMode = ref.watch(themeProvider);
 
-    // Sync audio metadata when language changes
+    // Sync audio metadata and base URL when language changes
     ref.listen(localeProvider, (prev, next) {
       if (prev?.languageCode != next.languageCode) {
         // Use a small delay to ensure providers have updated via their own watchers
         Future.delayed(Duration.zero, () {
           final handler = ref.read(audioHandlerProvider);
+          
+          // Update base URL for streaming
+          final newApiUrl = AppConfig.apiUrl(next.languageCode);
+          handler.updateBaseUrl(newApiUrl);
+          
+          // Update metadata in queue
           handler.updateQueueMetadata(next.languageCode);
         });
       }

@@ -34,7 +34,6 @@ coverage/
 **/doc/api/
 
 # Generated plugin registrant
-lib/generated_plugin_registrant.dart
 
 # =========================
 # Android

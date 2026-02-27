@@ -9,7 +9,7 @@ import 'package:rhythm_flutter/core/constants/app_constants.dart';
 /// and integrates with audio_service for background + notification controls.
 class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final AudioPlayer _player = AudioPlayer();
-  final String _baseStreamUrl;
+  String _baseStreamUrl;
   final StorageService _storage;
 
   RhythmAudioHandler(this._baseStreamUrl, this._storage) {
@@ -37,6 +37,11 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
   }
 
   AudioPlayer get player => _player;
+
+  void updateBaseUrl(String newUrl) {
+    debugPrint('AudioHandler: Updating base URL from $_baseStreamUrl to $newUrl');
+    _baseStreamUrl = newUrl;
+  }
 
   // ── Auth headers ──
 
