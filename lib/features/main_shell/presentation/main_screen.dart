@@ -5,8 +5,11 @@ import 'package:go_router/go_router.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
 import 'package:rhythm_flutter/core/theme/glass_decoration.dart';
+import 'package:flutter/services.dart';
 import 'package:rhythm_flutter/core/theme/spacing.dart';
 import 'package:rhythm_flutter/features/player/presentation/mini_player.dart';
+import 'package:rhythm_flutter/features/player/presentation/player_intents.dart';
+import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
 
 /// Main shell with bottom navigation and glassmorphism mini-player.
 class MainScreen extends ConsumerStatefulWidget {
@@ -21,6 +24,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final handler = ref.read(audioHandlerProvider);
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,

@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:rhythm_flutter/core/services/storage_service.dart';
 import 'package:rhythm_flutter/core/constants/app_constants.dart';
@@ -13,8 +14,16 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
   final StorageService _storage;
 
   RhythmAudioHandler(this._baseStreamUrl, this._storage) {
-    // Broadcast playback state changes
-    _player.playbackEventStream.map(_transformEvent).pipe(playbackState);
+    // Broadcast playback state changes by combining event and state streams.
+    // This ensures play/pause changes (which emit in playerStateStream)
+    // always trigger a playbackState update for the UI.
+    Rx.combineLatest2<PlaybackEvent, PlayerState, PlaybackState>(
+      _player.playbackEventStream.startWith(_player.playbackEvent),
+      _player.playerStateStream,
+      (event, state) => _transformEvent(event),
+    ).listen(playbackState.add);
+
+    _initAudioSession();
 
     // Listen for current index changes to update mediaItem
     _player.currentIndexStream.listen((index) {
@@ -33,6 +42,42 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
     // Log player errors for diagnostics
     _player.playerStateStream.listen(null, onError: (Object e, StackTrace st) {
       debugPrint('AudioHandler: Player stream error: $e');
+    });
+  }
+
+  Future<void> _initAudioSession() async {
+    final session = await AudioSession.instance;
+    await session.configure(const AudioSessionConfiguration.music());
+    
+    // Listen for audio interruptions (e.g. phone calls)
+    session.interruptionEventStream.listen((event) {
+      if (event.begin) {
+        switch (event.type) {
+          case AudioInterruptionType.duck:
+            _player.setVolume(0.5);
+            break;
+          case AudioInterruptionType.pause:
+          case AudioInterruptionType.unknown:
+            _player.pause();
+            break;
+        }
+      } else {
+        switch (event.type) {
+          case AudioInterruptionType.duck:
+            _player.setVolume(1.0);
+            break;
+          case AudioInterruptionType.pause:
+            _player.play();
+            break;
+          case AudioInterruptionType.unknown:
+            break;
+        }
+      }
+    });
+
+    // Listen for unplugging headphones
+    session.becomingNoisyEventStream.listen((_) {
+      _player.pause();
     });
   }
 
@@ -57,9 +102,13 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
 
   /// Load and play a list of songs, starting at the given index.
   Future<void> loadPlaylist(List<MediaItem> items, {int initialIndex = 0}) async {
-    debugPrint('AudioHandler: loadPlaylist called with ${items.length} items, initialIndex: $initialIndex');
-    queue.add(items);
+    if (items.isEmpty) return;
+    
+    final targetId = items.length > initialIndex ? items[initialIndex].id : 'unknown';
+    debugPrint('AudioHandler: loadPlaylist target ID: $targetId at index $initialIndex');
 
+    debugPrint('AudioHandler: Loading new playlist with ${items.length} items');
+    queue.add(items);
     final headers = _getAuthHeaders();
     final audioSources = items.map((item) => _createAudioSource(item, headers)).toList();
 
@@ -127,10 +176,22 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
   // ── Playback controls ──
 
   @override
-  Future<void> play() => _player.play();
+  Future<void> play() {
+    final future = _player.play();
+    _broadcastState();
+    return future;
+  }
 
   @override
-  Future<void> pause() => _player.pause();
+  Future<void> pause() {
+    final future = _player.pause();
+    _broadcastState();
+    return future;
+  }
+
+  void _broadcastState() {
+    playbackState.add(_transformEvent(_player.playbackEvent));
+  }
 
   @override
   Future<void> seek(Duration position) => _player.seek(position);

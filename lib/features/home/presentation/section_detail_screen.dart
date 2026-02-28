@@ -4,6 +4,7 @@ import 'package:rhythm_flutter/core/animations/app_animations.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
 import 'package:rhythm_flutter/core/theme/spacing.dart';
 import 'package:rhythm_flutter/features/home/data/models/home_feed.dart';
+import 'package:rhythm_flutter/features/home/data/models/music.dart';
 import 'package:rhythm_flutter/features/home/presentation/widgets/music_card.dart';
 import 'package:rhythm_flutter/features/home/providers/home_provider.dart';
 import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
@@ -41,12 +42,16 @@ class SectionDetailScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('${context.l10n.error}: $err')),
         data: (feed) {
-          if (feed == null) return const SizedBox.shrink();
-          
           final section = feed.sections.firstWhere(
             (s) => s.slug == slug,
             orElse: () => HomeSection(title: title, slug: slug, items: []),
           );
+
+          // Pre-filter music to ensure indices are correct
+          final sectionMusic = section.musicIds
+              .map((id) => feed.getMusicById(id))
+              .whereType<Music>()
+              .toList();
 
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
@@ -96,8 +101,7 @@ class SectionDetailScreen extends ConsumerWidget {
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      final music = feed.getMusicById(section.musicIds[index]);
-                      if (music == null) return const SizedBox.shrink();
+                      final music = sectionMusic[index];
 
                       return FadeScaleIn(
                         delay: AppAnimations.stagger(index, baseMs: 40),
@@ -107,10 +111,6 @@ class SectionDetailScreen extends ConsumerWidget {
                           isFavorite: ref.watch(favoritesProvider).contains(music.id),
                           onTap: () {
                             final handler = ref.read(audioHandlerProvider);
-                            final sectionMusic = section.musicIds
-                                .map((id) => feed.getMusicById(id))
-                                .whereType<dynamic>()
-                                .toList();
                             final mediaItems = sectionMusic
                                 .map((m) => musicToMediaItem(m, locale))
                                 .toList();
@@ -119,7 +119,7 @@ class SectionDetailScreen extends ConsumerWidget {
                         ),
                       );
                     },
-                    childCount: section.musicIds.length,
+                    childCount: sectionMusic.length,
                   ),
                 ),
               ),

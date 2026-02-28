@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rhythm_flutter/app.dart';
 import 'package:rhythm_flutter/core/services/audio_handler.dart';
@@ -14,6 +15,9 @@ void main() async {
   debugPrint('Main: Starting application');
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  // Initialize MediaKit for desktop support
+  MediaKit.ensureInitialized();
 
   // Load environment variables
   await dotenv.load(fileName: ".env");

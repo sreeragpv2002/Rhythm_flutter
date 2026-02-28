@@ -134,11 +134,20 @@ class Music with _$Music {
     }
 
     // Unify favorite fields
-    if (data['is_favorite'] != null) {
-      data['is_favorited'] = data['is_favorite'];
-    } else if (data['is_favorited'] != null) {
-      data['is_favorite'] = data['is_favorited'];
+    dynamic rawFav = data['is_favorite'] ?? data['is_favorited'] ?? data['favorited'];
+    bool isFavValue = false;
+    if (rawFav != null) {
+      if (rawFav is bool) {
+        isFavValue = rawFav;
+      } else if (rawFav is int) {
+        isFavValue = rawFav == 1;
+      } else if (rawFav is String) {
+        isFavValue = rawFav.toLowerCase() == 'true' || rawFav == '1';
+      }
     }
+    
+    data['is_favorited'] = isFavValue;
+    data['is_favorite'] = isFavValue;
 
     return data;
   }

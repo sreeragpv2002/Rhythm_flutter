@@ -9,16 +9,25 @@ part 'favorites_provider.g.dart';
 class Favorites extends _$Favorites {
   @override
   Set<int> build() {
+    ref.keepAlive(); // Prevents disposal during navigation
     return {};
   }
 
   /// Initialize favorited IDs from a list of music items (e.g., from HomeFeed or Playback)
   void initFromList(List<Music> songs) {
-    final favoritedIds = songs
+    if (songs.isEmpty) return;
+    
+    final songIds = songs.map((s) => s.id).toSet();
+    final newlyFavoritedIds = songs
         .where((s) => s.isFavorited || s.isFavorite)
         .map((s) => s.id)
         .toSet();
-    state = {...state, ...favoritedIds};
+
+    final updatedState = Set<int>.from(state)
+      ..removeAll(songIds.difference(newlyFavoritedIds))
+      ..addAll(newlyFavoritedIds);
+
+    state = updatedState;
   }
 
   /// Toggle favorite status via API and update local state.

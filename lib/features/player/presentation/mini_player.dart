@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,6 +30,9 @@ class MiniPlayer extends ConsumerWidget {
     if (mediaItem == null) return const SizedBox.shrink();
 
     final isPlaying = playbackAsync.valueOrNull?.playing ?? false;
+    final processingState = playbackAsync.valueOrNull?.processingState ?? AudioProcessingState.idle;
+    final bool isLoading = processingState == AudioProcessingState.loading || 
+                           processingState == AudioProcessingState.buffering;
 
     // Progress fraction for the thin bar
     final posData = positionAsync.valueOrNull;
@@ -79,13 +83,16 @@ class MiniPlayer extends ConsumerWidget {
                             child: SizedBox(
                               width: AppSpacing.thumbnailSm,
                               height: AppSpacing.thumbnailSm,
-                              child: mediaItem.artUri != null
-                                  ? CachedNetworkImage(
+                              child: Stack(
+                                children: [
+                                  if (mediaItem.artUri != null)
+                                    CachedNetworkImage(
                                       imageUrl: mediaItem.artUri.toString(),
                                       fit: BoxFit.cover,
                                       memCacheWidth: (AppSpacing.thumbnailSm * 2).toInt(),
                                     )
-                                  : Container(
+                                  else
+                                    Container(
                                       color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                                       child: Icon(
                                         Icons.music_note_rounded,
@@ -93,6 +100,23 @@ class MiniPlayer extends ConsumerWidget {
                                         size: AppSpacing.iconMd,
                                       ),
                                     ),
+                                  
+                                  if (isLoading)
+                                    Container(
+                                      color: Colors.black45,
+                                      child: const Center(
+                                        child: SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -105,29 +129,29 @@ class MiniPlayer extends ConsumerWidget {
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                mediaItem.title.isEmpty ? context.l10n.appName : mediaItem.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                                Text(
+                                  isLoading ? 'Loading...' : (mediaItem.title.isEmpty ? context.l10n.appName : mediaItem.title),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                (mediaItem.artist == null || mediaItem.artist!.isEmpty)
-                                    ? context.l10n.unknownArtist
-                                    : mediaItem.artist!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: isDark
-                                      ? Colors.white.withValues(alpha: 0.55)
-                                      : AppColors.textSecondaryLight,
-                                  fontSize: 12,
+                                Text(
+                                  isLoading ? '...' : ((mediaItem.artist == null || mediaItem.artist!.isEmpty)
+                                      ? context.l10n.unknownArtist
+                                      : mediaItem.artist!),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.55)
+                                        : AppColors.textSecondaryLight,
+                                    fontSize: 12,
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
@@ -153,18 +177,33 @@ class MiniPlayer extends ConsumerWidget {
                           },
                         ),
 
-                        // Play / Pause
-                        IconButton(
-                          icon: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 200),
-                            child: Icon(
-                              isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                              key: ValueKey(isPlaying),
-                              color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                              size: 28,
-                            ),
-                          ),
-                          onPressed: () => isPlaying ? handler.pause() : handler.play(),
+                         // Play / Pause / Load
+                        SizedBox(
+                          width: 48,
+                          height: 48,
+                          child: isLoading
+                              ? const Center(
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                                    ),
+                                  ),
+                                )
+                              : IconButton(
+                                  icon: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 200),
+                                    child: Icon(
+                                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                      key: ValueKey(isPlaying),
+                                      color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                      size: 28,
+                                    ),
+                                  ),
+                                  onPressed: () => isPlaying ? handler.pause() : handler.play(),
+                                ),
                         ),
 
                         // Skip next

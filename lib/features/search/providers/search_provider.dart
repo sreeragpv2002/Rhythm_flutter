@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:rhythm_flutter/features/home/data/models/music.dart';
 import 'package:rhythm_flutter/features/home/data/repositories/music_repository.dart';
+import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
 
 part 'search_provider.g.dart';
 
@@ -28,5 +29,12 @@ Future<List<Music>> searchResults(Ref ref) async {
   }
 
   final repository = ref.read(musicRepositoryProvider);
-  return repository.searchMusic(query);
+  final results = await repository.searchMusic(query);
+  
+  // Sync favorites state with search results
+  if (results.isNotEmpty) {
+     ref.read(favoritesProvider.notifier).initFromList(results);
+  }
+  
+  return results;
 }

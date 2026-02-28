@@ -8,6 +8,8 @@ import 'package:rhythm_flutter/core/router/app_router.dart';
 import 'package:rhythm_flutter/core/theme/app_theme.dart';
 import 'package:rhythm_flutter/shared/providers/locale_provider.dart';
 import 'package:rhythm_flutter/shared/providers/theme_provider.dart';
+import 'package:flutter/services.dart';
+import 'package:rhythm_flutter/features/player/presentation/player_intents.dart';
 
 class RhythmApp extends ConsumerWidget {
   const RhythmApp({super.key});
@@ -35,27 +37,74 @@ class RhythmApp extends ConsumerWidget {
       }
     });
 
-    return MaterialApp.router(
-      title: 'Rhythm',
-      debugShowCheckedModeBanner: false,
-      
-      // Localization
-      locale: locale,
-      localizationsDelegates: [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: AppLocalizations.supportedLocales,
-      
-      // Routing
-      routerConfig: router,
-      
-      // Theming
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeMode,
+    final handler = ref.read(audioHandlerProvider);
+
+    return Shortcuts(
+      shortcuts: <ShortcutActivator, Intent>{
+        const SingleActivator(LogicalKeyboardKey.space): const PlayPauseIntent(),
+        const SingleActivator(LogicalKeyboardKey.mediaPlayPause): const PlayPauseIntent(),
+        const SingleActivator(LogicalKeyboardKey.mediaTrackNext): const SkipNextIntent(),
+        const SingleActivator(LogicalKeyboardKey.mediaTrackPrevious): const SkipPreviousIntent(),
+        const SingleActivator(LogicalKeyboardKey.arrowRight, control: true): const SkipNextIntent(),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft, control: true): const SkipPreviousIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          PlayPauseIntent: CallbackAction<PlayPauseIntent>(
+            onInvoke: (_) {
+              if (handler.player.playing) {
+                handler.pause();
+              } else {
+                handler.play();
+              }
+              return null;
+            },
+          ),
+          SkipNextIntent: CallbackAction<SkipNextIntent>(
+            onInvoke: (_) {
+              handler.skipToNext();
+              return null;
+            },
+          ),
+          SkipPreviousIntent: CallbackAction<SkipPreviousIntent>(
+            onInvoke: (_) {
+              handler.skipToPrevious();
+              return null;
+            },
+          ),
+        },
+        child: MaterialApp.router(
+          title: 'Rhythm',
+          debugShowCheckedModeBanner: false,
+          
+          // Localization
+          locale: locale,
+          localizationsDelegates: [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          
+          // Routing
+          routerConfig: router,
+          
+          // Theming
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeMode,
+
+          // Ensure there is always a focus node to capture shortcuts
+          builder: (context, child) {
+            return Focus(
+              autofocus: true,
+              debugLabel: 'GlobalFocus',
+              child: child!,
+            );
+          },
+        ),
+      ),
     );
   }
 }

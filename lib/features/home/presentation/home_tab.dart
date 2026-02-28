@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rhythm_flutter/core/animations/app_animations.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
-import 'package:rhythm_flutter/core/services/media_item_mapper.dart';
 import 'package:rhythm_flutter/core/theme/spacing.dart';
 import 'package:rhythm_flutter/core/widgets/shimmer_loading.dart';
 import 'package:rhythm_flutter/features/home/presentation/widgets/music_card.dart';
 import 'package:rhythm_flutter/features/home/providers/home_provider.dart';
 import 'package:rhythm_flutter/features/home/data/models/home_feed.dart';
+import 'package:rhythm_flutter/features/home/data/models/music.dart';
 import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
 import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
@@ -50,9 +50,13 @@ class HomeTab extends ConsumerWidget {
         ),
       ),
       data: (feed) {
-        if (feed == null || feed.sections.isEmpty) {
+        if (feed.sections.isEmpty) {
           return Center(child: Text(context.l10n.noResults));
         }
+
+        final width = MediaQuery.of(context).size.width;
+        final isDesktop = width > 900;
+        final maxDisplayItems = isDesktop ? 20 : 8;
 
         return RefreshIndicator(
           onRefresh: () => ref.read(homeProvider.notifier).fetchHomeFeed(),
@@ -84,6 +88,16 @@ class HomeTab extends ConsumerWidget {
               ...feed.sections.asMap().entries.map((entry) {
                 final sectionIndex = entry.key;
                 final section = entry.value;
+
+                // Pre-filter music to ensure indices are correct
+                final sectionMusic = section.musicIds
+                    .map((id) => feed.getMusicById(id))
+                    .whereType<Music>()
+                    .toList();
+
+                if (sectionMusic.isEmpty) return const SizedBox.shrink();
+
+                final itemCount = math.min(maxDisplayItems, sectionMusic.length);
 
                 return SliverMainAxisGroup(
                   slivers: [
@@ -141,17 +155,16 @@ class HomeTab extends ConsumerWidget {
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.md,
                           ),
-                          itemCount: math.min(8, section.musicIds.length),
+                          itemCount: itemCount,
                           itemBuilder: (context, index) {
-                            final music = feed.getMusicById(section.musicIds[index]);
-                            if (music == null) return const SizedBox.shrink();
+                            final music = sectionMusic[index];
 
                             return FadeScaleIn(
                               delay: AppAnimations.stagger(index, baseMs: 40),
                               duration: AppAnimations.normal,
                               child: Padding(
                                 padding: EdgeInsets.only(
-                                  right: index != math.min(8, section.musicIds.length) - 1
+                                  right: index != itemCount - 1
                                       ? AppSpacing.sm + 4
                                       : 0,
                                 ),
@@ -160,10 +173,6 @@ class HomeTab extends ConsumerWidget {
                                   locale: locale,
                                   isFavorite: ref.watch(favoritesProvider).contains(music.id),
                                   onTap: () {
-                                    final sectionMusic = section.musicIds
-                                        .map((id) => feed.getMusicById(id))
-                                        .whereType<dynamic>()
-                                        .toList();
                                     final mediaItems = sectionMusic
                                         .map((m) => musicToMediaItem(m, locale))
                                         .toList();
@@ -196,7 +205,7 @@ class HomeTab extends ConsumerWidget {
   Widget _buildShimmer() {
     return CustomScrollView(
       slivers: [
-        SliverAppBar(
+        const SliverAppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           title: ShimmerBox(
@@ -210,9 +219,9 @@ class HomeTab extends ConsumerWidget {
         ...List.generate(3, (sectionIdx) {
           return SliverMainAxisGroup(
             slivers: [
-              SliverToBoxAdapter(
+              const SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
+                  padding: EdgeInsets.fromLTRB(
                     AppSpacing.md,
                     AppSpacing.sm,
                     AppSpacing.md,

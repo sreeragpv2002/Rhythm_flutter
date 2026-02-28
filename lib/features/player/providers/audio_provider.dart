@@ -4,6 +4,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:rhythm_flutter/core/services/audio_handler.dart';
 import 'package:rhythm_flutter/features/home/data/models/music.dart';
 import 'package:rhythm_flutter/features/home/data/repositories/music_repository.dart';
+import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
 import 'package:rhythm_flutter/core/services/media_item_mapper.dart';
 
 // Re-export the mapper so existing imports continue to work.
@@ -58,6 +59,9 @@ final currentMusicDetailsProvider = FutureProvider<Music?>((ref) async {
   final repository = ref.read(musicRepositoryProvider);
   final music = await repository.getMusicDetails(int.parse(mediaItem.id));
 
+  // Sync favorites state
+  ref.read(favoritesProvider.notifier).initFromList([music]);
+
   // Auto-enrich queue with related songs if this is the only track.
   final queue = ref.read(audioHandlerProvider).queue.value;
   if (queue.length <= 1 && music.audioUrl != null) {
@@ -65,6 +69,8 @@ final currentMusicDetailsProvider = FutureProvider<Music?>((ref) async {
     if (related.isNotEmpty) {
       final relatedMediaItems = related.map((m) => musicToMediaItem(m)).toList();
       ref.read(audioHandlerProvider).addItemsToQueue(relatedMediaItems);
+      // Also sync favorites from related songs
+      ref.read(favoritesProvider.notifier).initFromList(related);
     }
   }
 

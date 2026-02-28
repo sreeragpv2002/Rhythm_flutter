@@ -23,7 +23,13 @@ class Home extends _$Home {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final repository = ref.read(homeRepositoryProvider);
-      return repository.getHomeFeed();
+      final feed = await repository.getHomeFeed();
+      
+      // Initialize favorites from feed musicMap on manual refresh
+      final songs = feed.musicMap.values.toList();
+      ref.read(favoritesProvider.notifier).initFromList(songs);
+      
+      return feed;
     });
   }
 }

@@ -32,6 +32,10 @@ dependencies:
   json_annotation: ^4.9.0
   flutter_dotenv: ^6.0.0
   flutter_launcher_icons: ^0.14.4
+  just_audio_windows: ^0.2.2
+  media_kit: ^1.1.1
+  media_kit_libs_audio: ^1.0.7
+  just_audio_media_kit: ^2.1.0
 
 dev_dependencies:
   flutter_test:
@@ -45,6 +49,12 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
+  web:
+    generate: true
+  windows:
+    generate: true
+  macos:
+    generate: true
   image_path: "assets/icon/rhythm_icon.png"
 
 flutter_native_splash:

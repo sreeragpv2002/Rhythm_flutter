@@ -5,10 +5,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
-import 'package:rhythm_flutter/core/theme/spacing.dart';
-import 'package:rhythm_flutter/core/animations/app_animations.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
 import 'package:rhythm_flutter/core/services/audio_handler.dart';
 import 'package:rhythm_flutter/features/home/data/models/music.dart';
@@ -67,19 +64,27 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
     final mediaItemAsync = ref.watch(currentMediaItemProvider);
     final playbackAsync = ref.watch(playbackStateProvider);
     final handler = ref.read(audioHandlerProvider);
-    final musicAsync = ref.watch(musicDetailsProvider(widget.initialMusicId));
-    final relatedAsync = ref.watch(relatedSongsProvider(widget.initialMusicId));
-    final isLiked = ref.watch(favoritesProvider).contains(widget.initialMusicId);
+    
+    // Support skipping: use the currently playing ID if the player has moved on
+    final currentItem = mediaItemAsync.valueOrNull;
+    final effectiveId = (currentItem != null) 
+        ? (int.tryParse(currentItem.id) ?? widget.initialMusicId)
+        : widget.initialMusicId;
+
+    final musicAsync = ref.watch(musicDetailsProvider(effectiveId));
+    final relatedAsync = ref.watch(relatedSongsProvider(effectiveId));
+        
+    final isLiked = ref.watch(favoritesProvider).contains(effectiveId);
 
     // Logic remains untouched
     ref.listen<AsyncValue<Music>>(
       musicDetailsProvider(widget.initialMusicId),
-          (prev, next) {
+      (prev, next) {
         if (next.isLoading || next.hasError) return;
         next.whenData((music) {
-          if (prev == null || prev.isLoading) {
-            ref.read(favoritesProvider.notifier).initFromList([music]);
-          }
+          // Sync favorites state from the detailed response
+          ref.read(favoritesProvider.notifier).initFromList([music]);
+
           final currentItem = ref.read(currentMediaItemProvider).value;
           if (widget.initialMusicId != 0 && currentItem?.id != music.id.toString()) {
             _playMusic(music, handler, locale);
@@ -99,7 +104,7 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
     return Scaffold(
       body: Stack(
         children: [
-          _PremiumBackground(isDark: isDark, mediaItemAsync: mediaItemAsync, musicAsync: musicAsync),
+          _PremiumBackground(isDark: isDark, mediaItemAsync: mediaItemAsync, musicAsync: musicAsync, initialId: effectiveId.toString()),
           SafeArea(
             child: width > 900
                 ? _DesktopLayout(
@@ -115,6 +120,7 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
               formatDuration: _formatDuration,
               relatedAsync: relatedAsync,
               locale: locale,
+              initialMusicId: effectiveId.toString(),
               isDragging: _isDragging,
               dragValue: _dragValue,
               onDragStart: (v) => setState(() { _isDragging = true; _dragValue = v; }),
@@ -137,6 +143,7 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
               formatDuration: _formatDuration,
               relatedAsync: relatedAsync,
               locale: locale,
+              initialMusicId: effectiveId.toString(),
               isDragging: _isDragging,
               dragValue: _dragValue,
               onDragStart: (v) => setState(() { _isDragging = true; _dragValue = v; }),
@@ -153,9 +160,14 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen>
   }
 
   Future<void> _handleLikeToggle(WidgetRef ref) async {
-    await ref.read(favoritesProvider.notifier).toggleFavorite(widget.initialMusicId);
-    final liked = ref.read(favoritesProvider).contains(widget.initialMusicId);
-    ref.read(audioHandlerProvider).updateMediaItemFavorite(widget.initialMusicId.toString(), liked);
+    final currentItem = ref.read(currentMediaItemProvider).value;
+    final targetId = (currentItem != null) 
+        ? (int.tryParse(currentItem.id) ?? widget.initialMusicId)
+        : widget.initialMusicId;
+
+    await ref.read(favoritesProvider.notifier).toggleFavorite(targetId);
+    final liked = ref.read(favoritesProvider).contains(targetId);
+    ref.read(audioHandlerProvider).updateMediaItemFavorite(targetId.toString(), liked);
   }
 }
 
@@ -174,6 +186,7 @@ class _MobilePremiumLayout extends StatelessWidget {
   final String Function(Duration) formatDuration;
   final AsyncValue<List<Music>> relatedAsync;
   final String locale;
+  final String initialMusicId;
   final bool isDragging;
   final double? dragValue;
   final ValueChanged<double> onDragStart;
@@ -184,6 +197,7 @@ class _MobilePremiumLayout extends StatelessWidget {
     required this.mediaItemAsync, required this.musicAsync, required this.playbackAsync,
     required this.handler, required this.isLiked, required this.onLikeToggle,
     required this.formatDuration, required this.relatedAsync, required this.locale,
+    required this.initialMusicId,
     required this.isDragging, required this.dragValue, required this.onDragStart,
     required this.onDragEnd,
   });
@@ -205,10 +219,19 @@ class _MobilePremiumLayout extends StatelessWidget {
                   rotationController: rotationController,
                   mediaItemAsync: mediaItemAsync,
                   musicAsync: musicAsync,
+                  playbackAsync: playbackAsync,
+                  initialId: initialMusicId,
                   size: isShort ? height * 0.3 : height * 0.38,
                 ),
                 const Spacer(flex: 2),
-                _MetadataSection(mediaItemAsync: mediaItemAsync, musicAsync: musicAsync, isLiked: isLiked, onLikeToggle: onLikeToggle),
+                _MetadataSection(
+                  mediaItemAsync: mediaItemAsync,
+                  musicAsync: musicAsync,
+                  playbackAsync: playbackAsync,
+                  initialId: initialMusicId,
+                  isLiked: isLiked,
+                  onLikeToggle: onLikeToggle,
+                ),
                 SizedBox(height: height * 0.02),
                 _GlassControlPanel(
                   width: width,
@@ -248,6 +271,7 @@ class _DesktopLayout extends StatelessWidget {
   final String Function(Duration) formatDuration;
   final AsyncValue<List<Music>> relatedAsync;
   final String locale;
+  final String initialMusicId;
   final bool isDragging;
   final double? dragValue;
   final ValueChanged<double> onDragStart;
@@ -258,6 +282,7 @@ class _DesktopLayout extends StatelessWidget {
     required this.mediaItemAsync, required this.musicAsync, required this.playbackAsync,
     required this.handler, required this.isLiked, required this.onLikeToggle,
     required this.formatDuration, required this.relatedAsync, required this.locale,
+    required this.initialMusicId,
     required this.isDragging, required this.dragValue, required this.onDragStart,
     required this.onDragEnd,
   });
@@ -287,6 +312,8 @@ class _DesktopLayout extends StatelessWidget {
                           rotationController: rotationController,
                           mediaItemAsync: mediaItemAsync,
                           musicAsync: musicAsync,
+                          playbackAsync: playbackAsync,
+                          initialId: initialMusicId,
                           size: height * 0.5
                       )
                   ),
@@ -301,7 +328,14 @@ class _DesktopLayout extends StatelessWidget {
                       children: [
                         _HeaderSection(onBack: () => context.pop(), showTitle: false),
                         const Spacer(),
-                        _MetadataSection(mediaItemAsync: mediaItemAsync, musicAsync: musicAsync, isLiked: isLiked, onLikeToggle: onLikeToggle),
+                        _MetadataSection(
+                          mediaItemAsync: mediaItemAsync,
+                          musicAsync: musicAsync,
+                          playbackAsync: playbackAsync,
+                          initialId: initialMusicId,
+                          isLiked: isLiked,
+                          onLikeToggle: onLikeToggle,
+                        ),
                         const SizedBox(height: 32),
                         _GlassControlPanel(
                           width: width,
@@ -321,7 +355,7 @@ class _DesktopLayout extends StatelessWidget {
                           flex: 4,
                           child: ListView.builder(
                             itemCount: relatedAsync.value?.length ?? 0,
-                            itemBuilder: (context, i) => _CompactTile(song: relatedAsync.value![i], locale: locale, handler: handler),
+                            itemBuilder: (context, i) => _CompactTile(index: i, songs: relatedAsync.value!, locale: locale, handler: handler),
                           ),
                         ),
                       ],
@@ -448,13 +482,37 @@ class _FloatingDisc extends StatelessWidget {
   final AnimationController rotationController;
   final AsyncValue<MediaItem?> mediaItemAsync;
   final AsyncValue<Music> musicAsync;
+  final AsyncValue<PlaybackState> playbackAsync;
+  final String initialId;
   final double size;
 
-  const _FloatingDisc({required this.rotationController, required this.mediaItemAsync, required this.musicAsync, required this.size});
+  const _FloatingDisc({
+    required this.rotationController,
+    required this.mediaItemAsync,
+    required this.musicAsync,
+    required this.playbackAsync,
+    required this.initialId,
+    required this.size,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final artUrl = mediaItemAsync.valueOrNull?.artUri?.toString() ?? musicAsync.valueOrNull?.thumbUrl;
+    final mediaItem = mediaItemAsync.valueOrNull;
+    final music = musicAsync.valueOrNull;
+    final processingState = playbackAsync.valueOrNull?.processingState ?? AudioProcessingState.idle;
+    
+    // Determine if we should show a loader
+    final bool isLoading = processingState == AudioProcessingState.loading || 
+                           processingState == AudioProcessingState.buffering ||
+                           (mediaItem == null && musicAsync.isLoading);
+
+    // Prevent "other song thumb" flicker: 
+    // If the currently playing ID doesn't match our intent, and we are loading, don't show the old thumb.
+    final bool isCorrectSong = mediaItem?.id == initialId || (mediaItem == null && music?.id.toString() == initialId);
+    final String? artUrl = isCorrectSong 
+        ? (mediaItem?.artUri?.toString() ?? music?.thumbUrl)
+        : music?.thumbUrl;
+
     return AnimatedBuilder(
       animation: rotationController,
       builder: (_, child) => Transform.rotate(angle: rotationController.value * 2 * pi, child: child),
@@ -466,9 +524,33 @@ class _FloatingDisc extends StatelessWidget {
           border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
         ),
         child: ClipOval(
-          child: artUrl != null
-              ? CachedNetworkImage(imageUrl: artUrl, fit: BoxFit.cover)
-              : Container(color: Colors.black87, child: const Icon(Icons.music_note, color: Colors.white24, size: 60)),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Show correct thumb if we have it (prioritize music model while mediaItem is stale)
+              if (artUrl != null)
+                CachedNetworkImage(
+                  imageUrl: artUrl, 
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(color: Colors.black87),
+                  errorWidget: (context, url, error) => Container(color: Colors.black87),
+                )
+              else
+                Container(color: Colors.black87, child: const Icon(Icons.music_note, color: Colors.white24, size: 60)),
+              
+              // Loading Overlay
+              if (isLoading)
+                Container(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                      strokeWidth: 3,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -478,16 +560,40 @@ class _FloatingDisc extends StatelessWidget {
 class _MetadataSection extends StatelessWidget {
   final AsyncValue<MediaItem?> mediaItemAsync;
   final AsyncValue<Music> musicAsync;
+  final AsyncValue<PlaybackState> playbackAsync;
+  final String initialId;
   final bool isLiked;
   final VoidCallback onLikeToggle;
 
-  const _MetadataSection({required this.mediaItemAsync, required this.musicAsync, required this.isLiked, required this.onLikeToggle});
+  const _MetadataSection({
+    required this.mediaItemAsync,
+    required this.musicAsync,
+    required this.playbackAsync,
+    required this.initialId,
+    required this.isLiked,
+    required this.onLikeToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
     final item = mediaItemAsync.valueOrNull;
     final music = musicAsync.valueOrNull;
     final color = Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black;
+    final processingState = playbackAsync.valueOrNull?.processingState ?? AudioProcessingState.idle;
+    
+    final bool isLoading = processingState == AudioProcessingState.loading || 
+                           processingState == AudioProcessingState.buffering;
+
+    // Determine if the current media item matches what we intend to show
+    final bool isStale = item != null && item.id != initialId && isLoading;
+
+    final String title = isStale || (item == null && isLoading)
+        ? 'Loading...'
+        : (item?.title ?? music?.getDisplayTitle(context.l10n.localeName) ?? '—');
+    
+    final String artist = isStale || (item == null && isLoading)
+        ? '...'
+        : (item?.artist ?? music?.getDisplayArtists(context.l10n.localeName) ?? context.l10n.unknownArtist);
 
     return Row(
       children: [
@@ -496,8 +602,8 @@ class _MetadataSection extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(item?.title ?? music?.getDisplayTitle(context.l10n.localeName) ?? '—', style: TextStyle(color: color, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: -0.6), maxLines: 1),
-              Text(item?.artist ?? music?.getDisplayArtists(context.l10n.localeName) ?? context.l10n.unknownArtist, style: TextStyle(color: color.withValues(alpha: 0.5), fontSize: 17, fontWeight: FontWeight.w500), maxLines: 1),
+              Text(title, style: TextStyle(color: color, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: -0.6), maxLines: 1),
+              Text(artist, style: TextStyle(color: color.withValues(alpha: 0.5), fontSize: 17, fontWeight: FontWeight.w500), maxLines: 1),
             ],
           ),
         ),
@@ -511,12 +617,20 @@ class _PremiumBackground extends StatelessWidget {
   final bool isDark;
   final AsyncValue<MediaItem?> mediaItemAsync;
   final AsyncValue<Music> musicAsync;
+  final String initialId;
 
-  const _PremiumBackground({required this.isDark, required this.mediaItemAsync, required this.musicAsync});
+  const _PremiumBackground({required this.isDark, required this.mediaItemAsync, required this.musicAsync, required this.initialId});
 
   @override
   Widget build(BuildContext context) {
-    final artUrl = mediaItemAsync.valueOrNull?.artUri?.toString() ?? musicAsync.valueOrNull?.thumbUrl;
+    final mediaItem = mediaItemAsync.valueOrNull;
+    final music = musicAsync.valueOrNull;
+    
+    // Prevent stale thumb:
+    final bool isCorrectSong = mediaItem?.id == initialId || (mediaItem == null && music?.id.toString() == initialId);
+    final artUrl = isCorrectSong 
+        ? (mediaItem?.artUri?.toString() ?? music?.thumbUrl)
+        : music?.thumbUrl;
     return Container(
       color: isDark ? const Color(0xFF0F0F1A) : const Color(0xFFF0F4F8),
       child: Stack(
@@ -588,7 +702,7 @@ class _UpNextSection extends StatelessWidget {
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               itemCount: songs.length,
-              itemBuilder: (context, i) => _CompactTile(song: songs[i], locale: locale, handler: handler),
+              itemBuilder: (context, i) => _CompactTile(index: i, songs: songs, locale: locale, handler: handler),
             ),
           ),
         ],
@@ -598,10 +712,13 @@ class _UpNextSection extends StatelessWidget {
 }
 
 class _CompactTile extends StatelessWidget {
-  final Music song;
+  final int index;
+  final List<Music> songs;
   final String locale;
   final RhythmAudioHandler handler;
-  const _CompactTile({required this.song, required this.locale, required this.handler});
+  const _CompactTile({required this.index, required this.songs, required this.locale, required this.handler});
+
+  Music get song => songs[index];
 
   @override
   Widget build(BuildContext context) {
@@ -616,7 +733,10 @@ class _CompactTile extends StatelessWidget {
       ),
       title: Text(song.getDisplayTitle(locale), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1),
       subtitle: Text(song.getDisplayArtists(locale), style: const TextStyle(color: Colors.white38, fontSize: 11), maxLines: 1),
-      onTap: () => handler.loadPlaylist([musicToMediaItem(song, locale)]),
+      onTap: () {
+        final mediaItems = songs.map((s) => musicToMediaItem(s, locale)).toList();
+        handler.loadPlaylist(mediaItems, initialIndex: index);
+      },
     );
   }
 }
