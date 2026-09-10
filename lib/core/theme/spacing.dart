@@ -27,8 +27,8 @@ class AppSpacing {
   // ── Component heights (on the 8pt grid) ──
   static const double buttonHeight = 56;
   static const double inputHeight = 56;
-  static const double miniPlayerHeight = 64;
-  static const double bottomNavHeight = 64;
+  static const double miniPlayerHeight = 54;
+  static const double bottomNavHeight = 52;
   static const double thumbnailSm = 48;
   static const double thumbnailMd = 56;
   static const double thumbnailLg = 160;

@@ -14,6 +14,7 @@ class MusicListTile extends StatelessWidget {
   final VoidCallback? onTap;
   final bool? isFavorite;
   final VoidCallback? onFavoriteToggle;
+  final VoidCallback? onAddToPlaylist;
   final double thumbnailSize;
 
   const MusicListTile({
@@ -25,6 +26,7 @@ class MusicListTile extends StatelessWidget {
     this.onTap,
     this.isFavorite,
     this.onFavoriteToggle,
+    this.onAddToPlaylist,
     this.thumbnailSize = AppSpacing.thumbnailMd,
   });
 
@@ -116,6 +118,18 @@ class MusicListTile extends StatelessWidget {
                   color: isFavorite == true ? const Color(0xFFFF6B6B) : (isDark ? Colors.white : colorScheme.onSurface).withValues(alpha: 0.35),
                 ),
                 onPressed: onFavoriteToggle,
+              ),
+
+            // ── Add to Playlist ──
+            if (onAddToPlaylist != null)
+              IconButton(
+                icon: Icon(
+                  Icons.playlist_add_rounded,
+                  size: 22,
+                  color: (isDark ? Colors.white : colorScheme.onSurface).withValues(alpha: 0.4),
+                ),
+                tooltip: 'Add to Playlist',
+                onPressed: onAddToPlaylist,
               ),
           ],
         ),

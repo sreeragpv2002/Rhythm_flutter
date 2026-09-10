@@ -7,7 +7,6 @@ class AppConstants {
   static const Duration pageTransitionDuration = Duration(milliseconds: 250);
 
   // SharedPreferences keys
-  static const String localeKey = 'app_locale';
   static const String themeKey = 'app_theme';
   static const String isLoggedInKey = 'is_logged_in';
   static const String hasProfileKey = 'has_profile';

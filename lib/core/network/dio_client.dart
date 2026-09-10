@@ -2,16 +2,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:rhythm_flutter/shared/providers/locale_provider.dart';
 import 'package:rhythm_flutter/core/constants/app_constants.dart';
 import 'package:rhythm_flutter/core/config/app_config.dart';
 import 'package:rhythm_flutter/core/network/unauthorized_event_provider.dart';
 
 final dioProvider = Provider<Dio>((ref) {
-  final locale = ref.watch(localeProvider);
-  final langCode = locale.languageCode;
-
-  final baseUrl = '${AppConfig.baseUrl}/$langCode/${AppConfig.apiVersion}/';
+  final baseUrl = '${AppConfig.baseUrl}/${AppConfig.defaultLanguage}/${AppConfig.apiVersion}/';
 
   final dio = Dio(
     BaseOptions(
@@ -31,14 +27,18 @@ final dioProvider = Provider<Dio>((ref) {
         final prefs = await SharedPreferences.getInstance();
         final token = prefs.getString(AppConstants.accessTokenKey);
 
-        if (token != null && token.isNotEmpty) {
+        if (token != null && token.isNotEmpty && token != 'guest_token') {
           options.headers['Authorization'] = 'Bearer $token';
         }
 
         handler.next(options);
       },
       onError: (DioException error, handler) async {
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString(AppConstants.accessTokenKey);
+
         if (error.response?.statusCode == 401 &&
+            token != 'guest_token' &&
             error.requestOptions.extra['retry'] != true) {
           try {
             final prefs = await SharedPreferences.getInstance();

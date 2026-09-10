@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rhythm_flutter/core/services/audio_handler.dart';
+import 'package:rhythm_flutter/core/services/audio_quality_service.dart';
 import 'package:rhythm_flutter/features/home/data/models/music.dart';
 import 'package:rhythm_flutter/features/home/data/repositories/music_repository.dart';
 import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
@@ -51,13 +52,49 @@ final loopModeProvider = StreamProvider<LoopMode>((ref) {
   return handler.loopModeStream;
 });
 
+/// List of available download qualities for the currently playing song
+final currentSongQualitiesProvider = Provider<List<SongDownloadUrl>>((ref) {
+  final mediaItem = ref.watch(currentMediaItemProvider).value;
+  if (mediaItem == null) return [];
+  final rawUrls = mediaItem.extras?['download_urls'];
+  return AdaptiveAudioQualitySelector.parseDownloadUrls(rawUrls);
+});
+
+/// Currently selected quality display badge label (e.g. "320 kbps • Auto")
+final currentActiveQualityLabelProvider = Provider<String>((ref) {
+  final mediaItem = ref.watch(currentMediaItemProvider).value;
+  final pref = ref.watch(audioQualityPreferenceProvider);
+  final grade = ref.watch(networkSpeedGradeProvider).valueOrNull ?? NetworkSpeedGrade.good;
+
+  if (mediaItem == null) return 'HQ Audio';
+
+  final qualities = AdaptiveAudioQualitySelector.parseDownloadUrls(mediaItem.extras?['download_urls']);
+  if (qualities.isNotEmpty) {
+    final selected = AdaptiveAudioQualitySelector.resolveQuality(
+      availableQualities: qualities,
+      preference: pref,
+      currentGrade: grade,
+    );
+    if (selected != null) {
+      if (pref == AudioQualityPreference.auto) {
+        return '${selected.shortLabel} • Auto';
+      }
+      return selected.shortLabel;
+    }
+  }
+
+  final explicit = mediaItem.extras?['selected_quality'] as String?;
+  if (explicit != null && explicit.isNotEmpty) return explicit;
+  return 'HQ Audio';
+});
+
 /// Fetch details for the currently playing song (including related songs).
 final currentMusicDetailsProvider = FutureProvider<Music?>((ref) async {
   final mediaItem = ref.watch(currentMediaItemProvider).value;
   if (mediaItem == null) return null;
 
   final repository = ref.read(musicRepositoryProvider);
-  final music = await repository.getMusicDetails(int.parse(mediaItem.id));
+  final music = await repository.getMusicDetails(mediaItem.id);
 
   // Sync favorites state
   ref.read(favoritesProvider.notifier).initFromList([music]);
@@ -65,7 +102,7 @@ final currentMusicDetailsProvider = FutureProvider<Music?>((ref) async {
   // Auto-enrich queue with related songs if this is the only track.
   final queue = ref.read(audioHandlerProvider).queue.value;
   if (queue.length <= 1 && music.audioUrl != null) {
-    final related = await repository.getRelatedSongs(int.parse(mediaItem.id));
+    final related = await repository.getRelatedSongs(mediaItem.id);
     if (related.isNotEmpty) {
       final relatedMediaItems = related.map((m) => musicToMediaItem(m)).toList();
       ref.read(audioHandlerProvider).addItemsToQueue(relatedMediaItems);

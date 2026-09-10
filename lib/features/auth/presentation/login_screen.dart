@@ -7,8 +7,8 @@ import 'package:rhythm_flutter/core/utils/app_utils.dart';
 import 'package:rhythm_flutter/core/widgets/app_button.dart';
 import 'package:rhythm_flutter/core/widgets/app_text_field.dart';
 import 'package:rhythm_flutter/core/widgets/gradient_background.dart';
+import 'package:rhythm_flutter/features/auth/presentation/widgets/social_auth_buttons.dart';
 import 'package:rhythm_flutter/features/auth/providers/auth_provider.dart';
-import 'package:rhythm_flutter/shared/providers/locale_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -31,7 +31,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _onLogin() {
     if (!_formKey.currentState!.validate()) return;
-    
+
     ref.read(authProvider.notifier).login(
           _emailController.text,
           _passwordController.text,
@@ -47,110 +47,133 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Spacing.xxLarge,
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    FadeInLeft(
-                      child: IconButton(
-                        onPressed: () => ref.read(localeProvider.notifier).toggleLocale(),
-                        icon: const Icon(Icons.language),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Spacing.xxLarge,
+                  FadeInUp(
+                    child: Text(
+                      context.l10n.welcomeBack,
+                      style: context.textTheme.headlineLarge,
+                    ),
+                  ),
+                  Spacing.small,
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 100),
+                    child: Text(
+                      context.l10n.signIn,
+                      style: context.textTheme.bodyLarge?.copyWith(
+                        color: context.colorScheme.onSurface
+                            .withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ),
+                  Spacing.xxLarge,
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 200),
+                    child: AppTextField(
+                      controller: _emailController,
+                      labelText: context.l10n.email,
+                      prefixIcon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: Validators.email,
+                    ),
+                  ),
+                  Spacing.medium,
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 300),
+                    child: AppTextField(
+                      controller: _passwordController,
+                      labelText: context.l10n.password,
+                      prefixIcon: Icons.lock_outline,
+                      obscureText: true,
+                      validator: Validators.password,
+                    ),
+                  ),
+                  Spacing.small,
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 400),
+                    child: Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: TextButton(
+                        onPressed: () {},
+                        child: Text(context.l10n.forgotPassword),
+                      ),
+                    ),
+                  ),
+                  Spacing.large,
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 500),
+                    child: AppButton(
+                      text: context.l10n.login,
+                      onPressed: _onLogin,
+                      isLoading: authState.isLoading,
+                    ),
+                  ),
+                  if (authState.error != null) ...[
+                    Spacing.medium,
+                    Center(
+                      child: Text(
+                        authState.error!,
+                        style: TextStyle(color: context.colorScheme.error),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ],
-                ),
-                Spacing.medium,
-                FadeInUp(
-                  child: Text(
-                    context.l10n.welcomeBack,
-                    style: context.textTheme.headlineLarge,
+
+                  Spacing.large,
+
+                  // ── Social / Alternative Login ──
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 550),
+                    child: const AuthOrDivider(),
                   ),
-                ),
-                Spacing.small,
-                FadeInUp(
-                  delay: const Duration(milliseconds: 100),
-                  child: Text(
-                    context.l10n.signIn,
-                    style: context.textTheme.bodyLarge?.copyWith(
-                      color: context.colorScheme.onSurface.withValues(alpha: 0.7),
+
+                  Spacing.large,
+
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 600),
+                    child: GoogleAuthButton(
+                      text: 'Continue with Google',
+                      isLoading: authState.isLoading,
+                      onPressed: () =>
+                          ref.read(authProvider.notifier).loginWithGoogle(),
                     ),
                   ),
-                ),
-                Spacing.xxLarge,
-                FadeInUp(
-                  delay: const Duration(milliseconds: 200),
-                  child: AppTextField(
-                    controller: _emailController,
-                    labelText: context.l10n.email,
-                    prefixIcon: Icons.email_outlined,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: Validators.email,
-                  ),
-                ),
-                Spacing.medium,
-                FadeInUp(
-                  delay: const Duration(milliseconds: 300),
-                  child: AppTextField(
-                    controller: _passwordController,
-                    labelText: context.l10n.password,
-                    prefixIcon: Icons.lock_outline,
-                    obscureText: true,
-                    validator: Validators.password,
-                  ),
-                ),
-                Spacing.small,
-                FadeInUp(
-                  delay: const Duration(milliseconds: 400),
-                  child: Align(
-                    alignment: AlignmentDirectional.centerEnd,
-                    child: TextButton(
-                      onPressed: () {},
-                      child: Text(context.l10n.forgotPassword),
-                    ),
-                  ),
-                ),
-                Spacing.xLarge,
-                FadeInUp(
-                  delay: const Duration(milliseconds: 500),
-                  child: AppButton(
-                    text: context.l10n.login,
-                    onPressed: _onLogin,
-                    isLoading: authState.isLoading,
-                  ),
-                ),
-                if (authState.error != null) ...[
+
                   Spacing.medium,
-                  Center(
-                    child: Text(
-                      authState.error!,
-                      style: TextStyle(color: context.colorScheme.error),
-                      textAlign: TextAlign.center,
+
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 650),
+                    child: AnonymousAuthButton(
+                      text: 'Continue as Guest',
+                      isLoading: authState.isLoading,
+                      onPressed: () =>
+                          ref.read(authProvider.notifier).loginAnonymously(),
                     ),
                   ),
-                ],
-                Spacing.xLarge,
-                FadeInUp(
-                  delay: const Duration(milliseconds: 600),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(context.l10n.dontHaveAccount),
-                      TextButton(
-                        onPressed: () => context.push('/register'),
-                        child: Text(context.l10n.signUp),
-                      ),
-                    ],
+
+                  Spacing.large,
+
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 700),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(context.l10n.dontHaveAccount),
+                        TextButton(
+                          onPressed: () => context.push('/register'),
+                          child: Text(context.l10n.signUp),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Spacing.xxLarge,
-              ],
+                  Spacing.xxLarge,
+                ],
+              ),
             ),
-          ),
           ),
         ),
       ),

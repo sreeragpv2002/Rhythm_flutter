@@ -9,6 +9,8 @@ import 'package:rhythm_flutter/app.dart';
 import 'package:rhythm_flutter/core/services/audio_handler.dart';
 import 'package:rhythm_flutter/core/services/storage_service.dart';
 import 'package:rhythm_flutter/core/config/app_config.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:rhythm_flutter/firebase_options.dart';
 import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
 
 void main() async {
@@ -18,6 +20,16 @@ void main() async {
 
   // Initialize MediaKit for desktop support
   MediaKit.ensureInitialized();
+
+  // Initialize Firebase
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('Main: Firebase initialized successfully');
+  } catch (e) {
+    debugPrint('Main: Firebase initialization failed: $e');
+  }
 
   // Load environment variables
   await dotenv.load(fileName: ".env");
@@ -37,9 +49,12 @@ void main() async {
       builder: () => RhythmAudioHandler(apiBaseUrl, storageService),
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.rhythm.audio',
-        androidNotificationChannelName: 'Rhythm Music',
-        androidNotificationOngoing: true,
+        androidNotificationChannelName: 'Rhythm Music Playback',
+        androidNotificationChannelDescription: 'Rhythm background playback controls and media notifications',
+        androidNotificationIcon: 'mipmap/ic_launcher',
+        androidShowNotificationBadge: true,
         androidStopForegroundOnPause: true,
+        notificationColor: Color(0xFF6C5CE7),
       ),
     ).timeout(const Duration(seconds: 15));
 

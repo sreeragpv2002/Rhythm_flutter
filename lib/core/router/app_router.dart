@@ -1,9 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:rhythm_flutter/features/album/presentation/album_detail_screen.dart';
+import 'package:rhythm_flutter/features/artist/presentation/artist_detail_screen.dart';
 import 'package:rhythm_flutter/features/auth/presentation/login_screen.dart';
 import 'package:rhythm_flutter/features/auth/presentation/registration_screen.dart';
 import 'package:rhythm_flutter/features/auth/providers/auth_provider.dart';
 import 'package:rhythm_flutter/features/main_shell/presentation/main_screen.dart';
+import 'package:rhythm_flutter/features/playlist/presentation/playlist_detail_screen.dart';
+import 'package:rhythm_flutter/features/playlist/presentation/user_playlist_detail_screen.dart';
+import 'package:rhythm_flutter/features/playlist/presentation/user_playlists_screen.dart';
 import 'package:rhythm_flutter/features/profile/presentation/profile_creation_screen.dart';
 import 'package:rhythm_flutter/features/splash/presentation/splash_screen.dart';
 import 'package:rhythm_flutter/features/home/presentation/home_tab.dart';
@@ -11,7 +16,8 @@ import 'package:rhythm_flutter/features/search/presentation/search_tab.dart';
 import 'package:rhythm_flutter/features/settings/presentation/settings_tab.dart';
 import 'package:rhythm_flutter/features/player/presentation/song_detail_screen.dart';
 import 'package:rhythm_flutter/features/home/presentation/section_detail_screen.dart';
-import 'package:rhythm_flutter/features/home/presentation/library_tab.dart';
+import 'package:rhythm_flutter/features/language/presentation/language_selection_screen.dart';
+import 'package:rhythm_flutter/features/settings/presentation/favorites_screen.dart';
 import 'package:flutter/material.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -46,21 +52,88 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/player/:musicId',
         pageBuilder: (context, state) {
-          final musicId = int.tryParse(state.pathParameters['musicId'] ?? '');
+          final musicId = state.pathParameters['musicId'] ?? '0';
           return CustomTransitionPage(
             key: state.pageKey,
-            child: SongDetailScreen(initialMusicId: musicId ?? 0),
+            child: SongDetailScreen(initialMusicId: musicId),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               const begin = Offset(0.0, 1.0);
               const end = Offset.zero;
               const curve = Curves.easeInOutCubic;
-              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
               return SlideTransition(
                 position: animation.drive(tween),
                 child: child,
               );
             },
           );
+        },
+      ),
+      GoRoute(
+        path: '/album/:albumId',
+        pageBuilder: (context, state) {
+          final albumId = state.pathParameters['albumId'] ?? '';
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: AlbumDetailScreen(albumId: albumId),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(1.0, 0.0);
+              const end = Offset.zero;
+              const curve = Curves.easeInOutCubic;
+              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+          );
+        },
+      ),
+      GoRoute(
+        path: '/playlist/:playlistId',
+        pageBuilder: (context, state) {
+          final playlistId = state.pathParameters['playlistId'] ?? '';
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: PlaylistDetailScreen(playlistId: playlistId),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(1.0, 0.0);
+              const end = Offset.zero;
+              const curve = Curves.easeInOutCubic;
+              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+          );
+        },
+      ),
+      GoRoute(
+        path: '/artist/:artistId',
+        pageBuilder: (context, state) {
+          final artistId = state.pathParameters['artistId'] ?? '';
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: ArtistDetailScreen(artistId: artistId),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(1.0, 0.0);
+              const end = Offset.zero;
+              const curve = Curves.easeInOutCubic;
+              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+          );
+        },
+      ),
+      GoRoute(
+        path: '/languages',
+        builder: (context, state) {
+          final isFirstTime = state.extra as bool? ?? false;
+          return LanguageSelectionScreen(isFirstTime: isFirstTime);
         },
       ),
       StatefulShellRoute.indexedStack(
@@ -102,10 +175,85 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/settings',
                 builder: (context, state) => const SettingsTab(),
+                routes: [
+                  GoRoute(
+                    path: 'languages',
+                    builder: (context, state) {
+                      final isFirstTime = state.extra as bool? ?? false;
+                      return LanguageSelectionScreen(isFirstTime: isFirstTime);
+                    },
+                  ),
+                  GoRoute(
+                    path: 'favorites',
+                    builder: (context, state) => const FavoritesScreen(),
+                  ),
+                  GoRoute(
+                    path: 'playlists',
+                    builder: (context, state) => const UserPlaylistsScreen(),
+                  ),
+                ],
               ),
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: '/favorites',
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: const FavoritesScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(1.0, 0.0);
+              const end = Offset.zero;
+              const curve = Curves.easeInOutCubic;
+              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+          );
+        },
+      ),
+      GoRoute(
+        path: '/user-playlists',
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: const UserPlaylistsScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(1.0, 0.0);
+              const end = Offset.zero;
+              const curve = Curves.easeInOutCubic;
+              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+          );
+        },
+      ),
+      GoRoute(
+        path: '/user-playlist/:playlistId',
+        pageBuilder: (context, state) {
+          final playlistId = state.pathParameters['playlistId'] ?? '';
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: UserPlaylistDetailScreen(playlistId: playlistId),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(1.0, 0.0);
+              const end = Offset.zero;
+              const curve = Curves.easeInOutCubic;
+              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+          );
+        },
       ),
     ],
     redirect: (context, state) {

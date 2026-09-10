@@ -3,7 +3,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
   /// Base API domain (without language or version)
-  static String get baseUrl => dotenv.env['BASE_URL'] ?? 'https://dev.example.com';
+  static String get baseUrl =>
+      dotenv.env['BASE_URL'] ?? 'https://rhythm-backend-v1.onrender.com';
 
   /// API version
   static const String apiVersion = 'api/v1';

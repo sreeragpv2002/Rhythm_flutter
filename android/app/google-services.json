@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "319455985483",
+    "project_id": "rhythm-39358",
+    "storage_bucket": "rhythm-39358.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:319455985483:android:ea45119eb1797a9643b2ce",
+        "android_client_info": {
+          "package_name": "com.inksyng.app.inksyng"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "319455985483-b2fjdhl5nnatc1cthc73vo08t51kr90m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBSvuW7tfAuwCMoe4E9Ks3XOI3YZTjf8Dw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "319455985483-b2fjdhl5nnatc1cthc73vo08t51kr90m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

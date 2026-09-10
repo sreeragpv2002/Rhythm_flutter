@@ -4,11 +4,11 @@ import 'package:rhythm_flutter/features/home/data/repositories/music_repository.
 import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
 
 
-/// Fetch single music details
+/// Fetch single music details (accepts String or int id)
 final musicDetailsProvider =
-FutureProvider.family<Music, int>((ref, id) async {
+FutureProvider.family<Music, Object>((ref, id) async {
   final repository = ref.read(musicRepositoryProvider);
-  final music = await repository.getMusicDetails(id);
+  final music = await repository.getMusicDetails(id.toString());
   
   // Sync favorites state
   ref.read(favoritesProvider.notifier).initFromList([music]);
@@ -16,11 +16,11 @@ FutureProvider.family<Music, int>((ref, id) async {
   return music;
 });
 
-/// Fetch related songs
+/// Fetch related songs (accepts String or int id)
 final relatedSongsProvider =
-FutureProvider.family<List<Music>, int>((ref, id) async {
+FutureProvider.family<List<Music>, Object>((ref, id) async {
   final repository = ref.read(musicRepositoryProvider);
-  final related = await repository.getRelatedSongs(id);
+  final related = await repository.getRelatedSongs(id.toString());
   
   // Sync favorites state for related songs
   if (related.isNotEmpty) {

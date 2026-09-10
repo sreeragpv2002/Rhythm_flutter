@@ -1,4 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:rhythm_flutter/core/network/unauthorized_event_provider.dart';
 import 'package:rhythm_flutter/core/services/storage_service.dart';
@@ -64,13 +67,14 @@ class Auth extends _$Auth {
 
     try {
       final response = await _repository.login(email, password);
-      
+
       await _storage.setLoggedIn(true);
       await _storage.setUserEmail(response.user.email);
       await _storage.setAccessToken(response.access);
       await _storage.setRefreshToken(response.refresh);
       await _storage.setHasProfile(response.user.hasProfile);
-      
+      await _storage.setString('user_id', response.user.id.toString());
+
       state = state.copyWith(
         status: AuthStatus.authenticated,
         isLoading: false,
@@ -126,7 +130,120 @@ class Auth extends _$Auth {
     }
   }
 
+  /// Sign in using Google Sign-In and Firebase Auth
+  Future<void> loginWithGoogle() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      UserCredential userCredential;
+
+      if (kIsWeb) {
+        final googleProvider = GoogleAuthProvider();
+        googleProvider.addScope('email');
+        googleProvider.addScope('profile');
+        userCredential =
+            await FirebaseAuth.instance.signInWithPopup(googleProvider);
+      } else {
+        final GoogleSignIn googleSignIn = GoogleSignIn();
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+        if (googleUser == null) {
+          // User cancelled selection
+          state = state.copyWith(isLoading: false);
+          return;
+        }
+
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+        final AuthCredential credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        userCredential =
+            await FirebaseAuth.instance.signInWithCredential(credential);
+      }
+
+      final user = userCredential.user;
+      final idToken = await user?.getIdToken() ?? 'firebase_google_token';
+      final email = user?.email ?? 'google_user@rhythm.app';
+      final uid = user?.uid ?? '';
+
+      await _storage.setLoggedIn(true);
+      await _storage.setUserEmail(email);
+      await _storage.setAccessToken(idToken);
+      await _storage.setRefreshToken(idToken);
+      await _storage.setHasProfile(true);
+      if (uid.isNotEmpty) {
+        await _storage.setString('user_id', uid);
+        await _storage.setString('firebase_user_id', uid);
+      }
+
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        isLoading: false,
+        email: email,
+        accessToken: idToken,
+        hasProfile: true,
+      );
+    } catch (e) {
+      debugPrint('Auth: Google login error: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString().replaceAll('Exception: ', ''),
+      );
+    }
+  }
+
+  /// Sign in Anonymously / Guest Mode
+  Future<void> loginAnonymously() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      String uid = 'guest_${DateTime.now().millisecondsSinceEpoch}';
+      String token = 'guest_token';
+      const email = 'guest@rhythm.app';
+
+      try {
+        final userCredential = await FirebaseAuth.instance.signInAnonymously();
+        final user = userCredential.user;
+        if (user != null) {
+          uid = user.uid;
+          token = await user.getIdToken() ?? token;
+        }
+      } catch (firebaseErr) {
+        debugPrint('Auth: Firebase anonymous error (using local guest): $firebaseErr');
+      }
+
+      await _storage.setLoggedIn(true);
+      await _storage.setUserEmail(email);
+      await _storage.setAccessToken(token);
+      await _storage.setRefreshToken(token);
+      await _storage.setHasProfile(true);
+      await _storage.setString('user_id', uid);
+      await _storage.setString('firebase_user_id', uid);
+
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        isLoading: false,
+        email: email,
+        accessToken: token,
+        hasProfile: true,
+      );
+    } catch (e) {
+      debugPrint('Auth: Anonymous login total error: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString().replaceAll('Exception: ', ''),
+      );
+    }
+  }
+
   Future<void> logout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      if (!kIsWeb) {
+        await GoogleSignIn().signOut();
+      }
+    } catch (_) {}
     await _storage.clearAll();
     state = const AuthState();
   }

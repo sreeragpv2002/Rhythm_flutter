@@ -10,7 +10,8 @@ String _$searchResultsHash() => r'bf3264d3e4d6e345de9e22a3ba616cb7f9573de0';
 
 /// See also [searchResults].
 @ProviderFor(searchResults)
-final searchResultsProvider = AutoDisposeFutureProvider<List<Music>>.internal(
+final searchResultsProvider =
+    AutoDisposeFutureProvider<SearchResult>.internal(
   searchResults,
   name: r'searchResultsProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -22,7 +23,7 @@ final searchResultsProvider = AutoDisposeFutureProvider<List<Music>>.internal(
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef SearchResultsRef = AutoDisposeFutureProviderRef<List<Music>>;
+typedef SearchResultsRef = AutoDisposeFutureProviderRef<SearchResult>;
 String _$searchQueryHash() => r'32848c18dd36b350439a45fa6338bf2df6758978';
 
 /// See also [SearchQuery].

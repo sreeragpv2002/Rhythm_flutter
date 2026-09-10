@@ -7,6 +7,7 @@ import 'package:rhythm_flutter/core/utils/app_utils.dart';
 import 'package:rhythm_flutter/core/widgets/app_button.dart';
 import 'package:rhythm_flutter/core/widgets/app_text_field.dart';
 import 'package:rhythm_flutter/core/widgets/gradient_background.dart';
+import 'package:rhythm_flutter/features/auth/presentation/widgets/social_auth_buttons.dart';
 import 'package:rhythm_flutter/features/auth/providers/auth_provider.dart';
 
 class RegistrationScreen extends ConsumerStatefulWidget {
@@ -62,110 +63,148 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                FadeInUp(
-                  child: Text(
-                    context.l10n.getStarted,
-                    style: context.textTheme.headlineLarge,
-                  ),
-                ),
-                Spacing.small,
-                FadeInUp(
-                  delay: const Duration(milliseconds: 100),
-                  child: Text(
-                    context.l10n.signUp,
-                    style: context.textTheme.bodyLarge?.copyWith(
-                      color: context.colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ),
-                Spacing.xxLarge,
-                FadeInUp(
-                  delay: const Duration(milliseconds: 200),
-                  child: AppTextField(
-                    controller: _nameController,
-                    labelText: context.l10n.fullName,
-                    prefixIcon: Icons.person_outline,
-                    validator: (v) => Validators.required(v, context.l10n.fullName),
-                  ),
-                ),
-                Spacing.medium,
-                FadeInUp(
-                  delay: const Duration(milliseconds: 300),
-                  child: AppTextField(
-                    controller: _emailController,
-                    labelText: context.l10n.email,
-                    prefixIcon: Icons.email_outlined,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: Validators.email,
-                  ),
-                ),
-                Spacing.medium,
-                FadeInUp(
-                  delay: const Duration(milliseconds: 400),
-                  child: AppTextField(
-                    controller: _passwordController,
-                    labelText: context.l10n.password,
-                    prefixIcon: Icons.lock_outline,
-                    obscureText: true,
-                    validator: Validators.password,
-                  ),
-                ),
-                Spacing.medium,
-                FadeInUp(
-                  delay: const Duration(milliseconds: 500),
-                  child: AppTextField(
-                    controller: _confirmPasswordController,
-                    labelText: context.l10n.confirmPassword,
-                    prefixIcon: Icons.lock_clock_outlined,
-                    obscureText: true,
-                    validator: (v) {
-                      if (v != _passwordController.text) return 'Passwords do not match';
-                      return null;
-                    },
-                  ),
-                ),
-                Spacing.xxLarge,
-                FadeInUp(
-                  delay: const Duration(milliseconds: 600),
-                  child: AppButton(
-                    text: context.l10n.register,
-                    onPressed: _onRegister,
-                    isLoading: authState.isLoading,
-                  ),
-                ),
-                if (authState.error != null) ...[
-                  Spacing.medium,
-                  Center(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FadeInUp(
                     child: Text(
-                      authState.error!,
-                      style: TextStyle(color: context.colorScheme.error),
-                      textAlign: TextAlign.center,
+                      context.l10n.getStarted,
+                      style: context.textTheme.headlineLarge,
                     ),
                   ),
-                ],
-                Spacing.xLarge,
-                FadeInUp(
-                  delay: const Duration(milliseconds: 700),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(context.l10n.alreadyHaveAccount),
-                      TextButton(
-                        onPressed: () => context.pop(),
-                        child: Text(context.l10n.signIn),
+                  Spacing.small,
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 100),
+                    child: Text(
+                      context.l10n.signUp,
+                      style: context.textTheme.bodyLarge?.copyWith(
+                        color: context.colorScheme.onSurface
+                            .withValues(alpha: 0.7),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-                Spacing.xxLarge,
-              ],
+                  Spacing.xxLarge,
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 200),
+                    child: AppTextField(
+                      controller: _nameController,
+                      labelText: context.l10n.fullName,
+                      prefixIcon: Icons.person_outline,
+                      validator: (v) =>
+                          Validators.required(v, context.l10n.fullName),
+                    ),
+                  ),
+                  Spacing.medium,
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 300),
+                    child: AppTextField(
+                      controller: _emailController,
+                      labelText: context.l10n.email,
+                      prefixIcon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: Validators.email,
+                    ),
+                  ),
+                  Spacing.medium,
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 400),
+                    child: AppTextField(
+                      controller: _passwordController,
+                      labelText: context.l10n.password,
+                      prefixIcon: Icons.lock_outline,
+                      obscureText: true,
+                      validator: Validators.password,
+                    ),
+                  ),
+                  Spacing.medium,
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 500),
+                    child: AppTextField(
+                      controller: _confirmPasswordController,
+                      labelText: context.l10n.confirmPassword,
+                      prefixIcon: Icons.lock_clock_outlined,
+                      obscureText: true,
+                      validator: (v) {
+                        if (v != _passwordController.text) {
+                          return 'Passwords do not match';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  Spacing.large,
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 600),
+                    child: AppButton(
+                      text: context.l10n.register,
+                      onPressed: _onRegister,
+                      isLoading: authState.isLoading,
+                    ),
+                  ),
+                  if (authState.error != null) ...[
+                    Spacing.medium,
+                    Center(
+                      child: Text(
+                        authState.error!,
+                        style: TextStyle(color: context.colorScheme.error),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+
+                  Spacing.large,
+
+                  // ── Social / Alternative Registration ──
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 650),
+                    child: const AuthOrDivider(),
+                  ),
+
+                  Spacing.large,
+
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 700),
+                    child: GoogleAuthButton(
+                      text: 'Sign up with Google',
+                      isLoading: authState.isLoading,
+                      onPressed: () =>
+                          ref.read(authProvider.notifier).loginWithGoogle(),
+                    ),
+                  ),
+
+                  Spacing.medium,
+
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 750),
+                    child: AnonymousAuthButton(
+                      text: 'Continue as Guest',
+                      isLoading: authState.isLoading,
+                      onPressed: () =>
+                          ref.read(authProvider.notifier).loginAnonymously(),
+                    ),
+                  ),
+
+                  Spacing.large,
+
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 800),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(context.l10n.alreadyHaveAccount),
+                        TextButton(
+                          onPressed: () => context.pop(),
+                          child: Text(context.l10n.signIn),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Spacing.xxLarge,
+                ],
+              ),
             ),
-          ),
           ),
         ),
       ),
