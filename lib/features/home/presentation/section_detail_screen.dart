@@ -10,7 +10,7 @@ import 'package:rhythm_flutter/core/widgets/shimmer_loading.dart';
 import 'package:rhythm_flutter/features/home/data/models/home_feed.dart';
 import 'package:rhythm_flutter/features/home/presentation/widgets/home_item_card.dart';
 import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
-import 'package:rhythm_flutter/features/home/providers/home_provider.dart';
+import 'package:rhythm_flutter/features/home/providers/section_songs_notifier.dart';
 import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
 
 /// Modern, responsive Section View-All Screen for home feed sections (e.g. Trending Songs 50-list).
@@ -35,10 +35,28 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
   String _searchFilter = '';
   final _searchController = TextEditingController();
   bool _showSearchBar = false;
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final max = _scrollController.position.maxScrollExtent;
+    final current = _scrollController.offset;
+    // Trigger fetchMore when within 300px of the bottom
+    if (current >= max - 300) {
+      ref.read(sectionSongsNotifierProvider(widget.slug).notifier).fetchMore();
+    }
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -68,7 +86,7 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final songsAsync = ref.watch(sectionSongsProvider(widget.slug));
+    final songsAsync = ref.watch(sectionSongsNotifierProvider(widget.slug));
     final currentMediaItem = ref.watch(currentMediaItemProvider).valueOrNull;
     final playbackState = ref.watch(playbackStateProvider).valueOrNull;
     final isPlaying = playbackState?.playing ?? false;
@@ -91,12 +109,13 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
       body: songsAsync.when(
         loading: () => _buildShimmer(context, isDark, horizontalPadding, crossAxisCount),
         error: (err, stack) => _buildErrorState(context, err, isDark),
-        data: (rawItems) {
+        data: (sectionState) {
+          final rawItems = sectionState.items;
           // Filter items based on in-page search
           final items = _searchFilter.trim().isEmpty
               ? rawItems
               : rawItems.where((item) {
-                  final q = _searchFilter.toLowerCase();
+              final q = _searchFilter.toLowerCase();
                   return item.displayTitle.toLowerCase().contains(q) ||
                       item.displaySubtitle.toLowerCase().contains(q) ||
                       (item.language?.toLowerCase().contains(q) ?? false);
@@ -105,6 +124,7 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
           final bool hasSongs = items.any((i) => i.isSong);
 
           return CustomScrollView(
+            controller: _scrollController,
             physics: AppScrollPhysics.adaptive,
             slivers: [
               // ── Modern Sliver App Bar with Ambient Header ──
@@ -448,6 +468,38 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
                   ),
                 ),
 
+              // ── Bottom: Load-More Indicator or End of List ──
+              SliverToBoxAdapter(
+                child: sectionState.isLoadingMore
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Center(
+                          child: SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Color(0xFF6C5CE7),
+                            ),
+                          ),
+                        ),
+                      )
+                    : !sectionState.hasMore && rawItems.isNotEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: Center(
+                              child: Text(
+                                '${rawItems.length} items loaded',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white30 : Colors.black26,
+                                ),
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+              ),
+
               // ── Bottom Spacing for Floating Mini Player ──
               const SliverToBoxAdapter(
                 child: SizedBox(height: AppSpacing.miniPlayerHeight + AppSpacing.xxl),
@@ -535,7 +587,7 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: () {
-                  ref.invalidate(sectionSongsProvider(widget.slug));
+                  ref.read(sectionSongsNotifierProvider(widget.slug).notifier).retry();
                 },
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Retry'),

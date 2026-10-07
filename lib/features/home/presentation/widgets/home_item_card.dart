@@ -143,9 +143,8 @@ class _HomeItemCardState extends State<HomeItemCard>
                       child: ClipRRect(
                         borderRadius:
                             BorderRadius.circular(AppSpacing.radiusMd),
-                        child: SizedBox(
-                          width: AppSpacing.thumbnailLg,
-                          height: 140,
+                        child: AspectRatio(
+                          aspectRatio: 1.0,
                           child: Stack(
                             fit: StackFit.expand,
                             children: [

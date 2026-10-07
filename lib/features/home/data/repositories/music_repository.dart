@@ -708,11 +708,16 @@ class MusicRepository {
   }
 
   /// Search/fetch songs specifically via GET /api/v1/search/songs?query=...&limit=50
-  Future<List<HomeItem>> getSongsByQuery({required String query, int limit = 50}) async {
+  Future<List<HomeItem>> getSongsByQuery({
+    required String query,
+    int limit = 50,
+    String? language,
+  }) async {
     final cleanQuery = query.trim().isEmpty ? 'top trending' : query.trim();
     final queryParams = <String, dynamic>{
       'query': cleanQuery,
       'limit': limit,
+      if (language != null && language.isNotEmpty) 'language': language,
     };
 
     try {
@@ -744,11 +749,16 @@ class MusicRepository {
   }
 
   /// Search/fetch playlists specifically via GET /api/v1/search/playlists?query=...&limit=50
-  Future<List<HomeItem>> getPlaylistsByQuery({required String query, int limit = 50}) async {
+  Future<List<HomeItem>> getPlaylistsByQuery({
+    required String query,
+    int limit = 50,
+    String? language,
+  }) async {
     final cleanQuery = query.trim().isEmpty ? 'trending' : query.trim();
     final queryParams = <String, dynamic>{
       'query': cleanQuery,
       'limit': limit,
+      if (language != null && language.isNotEmpty) 'language': language,
     };
 
     try {
