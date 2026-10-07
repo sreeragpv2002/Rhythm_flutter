@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:js' as js;
-import 'dart:js_util' as js_util;
 import 'package:flutter/foundation.dart';
 import 'package:rhythm_flutter/core/services/web_youtube_player/web_youtube_player_base.dart';
 
@@ -25,7 +24,7 @@ class WebYouTubePlayer implements WebYouTubePlayerBase {
     try {
       final rhythmYT = js.context['rhythmYT'];
       if (rhythmYT != null) {
-        rhythmYT['onStateChangeCallback'] = js_util.allowInterop((dynamic state) {
+        rhythmYT['onStateChangeCallback'] = (dynamic state) {
           debugPrint('WebYouTubePlayer: state changed -> $state');
           // YT.PlayerState: -1: unstarted, 0: ended, 1: playing, 2: paused, 3: buffering, 5: cued
           if (state == 1) {
@@ -42,12 +41,12 @@ class WebYouTubePlayer implements WebYouTubePlayerBase {
             _stopTicker();
             _songEndedController.add(null);
           }
-        });
+        };
 
-        rhythmYT['onErrorCallback'] = js_util.allowInterop((dynamic errorCode) {
+        rhythmYT['onErrorCallback'] = (dynamic errorCode) {
           debugPrint('WebYouTubePlayer: error -> $errorCode');
           _errorController.add(null);
-        });
+        };
       }
     } catch (e) {
       debugPrint('WebYouTubePlayer: Error setting up JS callbacks: $e');

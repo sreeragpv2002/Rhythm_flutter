@@ -151,32 +151,22 @@ class Auth extends _$Auth {
       }
 
       // Native Android / iOS Google Sign-In
-      GoogleSignInAccount? googleUser;
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        serverClientId:
+            '319455985483-b2fjdhl5nnatc1cthc73vo08t51kr90m.apps.googleusercontent.com',
+        scopes: ['email', 'profile'],
+      );
+
+      // Clean any stale session before opening the account picker
       try {
-        final GoogleSignIn googleSignIn = GoogleSignIn(
-          serverClientId:
-              '319455985483-b2fjdhl5nnatc1cthc73vo08t51kr90m.apps.googleusercontent.com',
-          scopes: ['email', 'profile'],
-        );
-        googleUser = await googleSignIn.signIn();
-      } catch (e) {
-        debugPrint('Auth: GoogleSignIn with serverClientId failed: $e');
-        try {
-          final GoogleSignIn googleSignInFallback = GoogleSignIn(
-            scopes: ['email', 'profile'],
-          );
-          googleUser = await googleSignInFallback.signIn();
-        } catch (e2) {
-          debugPrint('Auth: GoogleSignIn fallback failed: $e2');
-          rethrow;
-        }
-      }
+        await googleSignIn.signOut();
+      } catch (_) {}
+
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'Google Sign-In was cancelled or rejected. Check SHA-1 configuration in Firebase Console.',
-        );
+        // User voluntarily dismissed the Google account picker
+        state = state.copyWith(isLoading: false);
         return;
       }
 
@@ -210,9 +200,18 @@ class Auth extends _$Auth {
       await _saveUserSession(email: email, token: token, uid: uid);
     } catch (e) {
       debugPrint('Auth: Google login error: $e');
+      String errorMsg = e.toString();
+      if (errorMsg.contains('ApiException: 10') || errorMsg.contains(': 10')) {
+        errorMsg = 'Google Sign-In configuration error (ApiException: 10). Register your debug SHA-1 in Firebase Console.';
+      } else {
+        errorMsg = errorMsg
+            .replaceAll('PlatformException(', '')
+            .replaceAll(')', '')
+            .replaceAll('Exception: ', '');
+      }
       state = state.copyWith(
         isLoading: false,
-        error: e.toString().replaceAll('PlatformException(', '').replaceAll(')', '').replaceAll('Exception: ', ''),
+        error: errorMsg,
       );
     }
   }

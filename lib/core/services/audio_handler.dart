@@ -425,6 +425,7 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
       }
     }
 
+
     // ─────────────────────────────────────────────────────────────────────────
     // 🌐 WEB YOUTUBE FAST PATH: Play via official YouTube IFrame Player on Web
     // ─────────────────────────────────────────────────────────────────────────
@@ -563,18 +564,22 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
         );
 
         if (isYt) {
-          final ytResult = await _youtubeAudioService.resolveStream(it.id, songUrl: ytUrl);
-          if (ytResult != null && ytResult.bestAudioUrl.isNotEmpty) {
-            final updatedExtras = Map<String, dynamic>.from(it.extras ?? {});
-            updatedExtras['audio_url'] = ytResult.bestAudioUrl;
-            if (ytResult.downloadUrls.isNotEmpty) {
-              updatedExtras['download_urls'] = ytResult.downloadUrls.map((e) => e.toJson()).toList();
+          if (!kIsWeb) {
+            final ytResult = await _youtubeAudioService.resolveStream(it.id, songUrl: ytUrl);
+            if (ytResult != null && ytResult.bestAudioUrl.isNotEmpty) {
+              final updatedExtras = Map<String, dynamic>.from(it.extras ?? {});
+              updatedExtras['audio_url'] = ytResult.bestAudioUrl;
+              if (ytResult.downloadUrls.isNotEmpty) {
+                updatedExtras['download_urls'] = ytResult.downloadUrls.map((e) => e.toJson()).toList();
+              }
+              final currentQ = List<MediaItem>.from(queue.value);
+              if (i < currentQ.length && currentQ[i].id == it.id) {
+                currentQ[i] = it.copyWith(extras: updatedExtras);
+                queue.add(currentQ);
+              }
+              continue;
             }
-            final currentQ = List<MediaItem>.from(queue.value);
-            if (i < currentQ.length && currentQ[i].id == it.id) {
-              currentQ[i] = it.copyWith(extras: updatedExtras);
-              queue.add(currentQ);
-            }
+          } else {
             continue;
           }
         }
@@ -666,8 +671,9 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
           url.contains('youtube') ||
           url.contains('piped') ||
           url.contains('invidious')) {
-        map['User-Agent'] =
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+        map['User-Agent'] = defaultTargetPlatform == TargetPlatform.android
+            ? 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36'
+            : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
       }
       if (map.isNotEmpty) {
         useHeaders = map;

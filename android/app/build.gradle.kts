@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         // Application ID matching Firebase google-services.json package_name
-        applicationId = "com.inksyng.app.inksyng"
+        applicationId = "com.rhythm.rhythm_flutter"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

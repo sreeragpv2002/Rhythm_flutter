@@ -725,12 +725,12 @@ class _DesktopPlayerSidebarState extends ConsumerState<DesktopPlayerSidebar> {
 
         return AlertDialog(
           backgroundColor: isDark ? const Color(0xFF16162C) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(20))),
+          title: const Row(
             children: [
               Icon(Icons.graphic_eq_rounded, color: AppColors.primaryLight, size: 22),
-              const SizedBox(width: 10),
-              const Text('Streaming Audio Quality', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(width: 10),
+              Text('Streaming Audio Quality', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           ),
           content: SizedBox(

@@ -13,7 +13,7 @@ import 'package:rhythm_flutter/features/splash/presentation/splash_screen.dart';
 import 'package:rhythm_flutter/features/home/presentation/home_tab.dart';
 import 'package:rhythm_flutter/features/search/presentation/search_tab.dart';
 import 'package:rhythm_flutter/features/settings/presentation/settings_tab.dart';
-import 'package:rhythm_flutter/features/player/presentation/song_detail_screen.dart';
+import 'package:rhythm_flutter/features/player/presentation/song_detail_page.dart';
 import 'package:rhythm_flutter/features/home/presentation/section_detail_screen.dart';
 import 'package:rhythm_flutter/features/language/presentation/language_selection_screen.dart';
 import 'package:rhythm_flutter/features/settings/presentation/favorites_screen.dart';

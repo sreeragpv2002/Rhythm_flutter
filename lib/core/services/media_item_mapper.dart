@@ -7,12 +7,25 @@ import 'package:rhythm_flutter/features/home/data/models/home_feed.dart';
 ///
 /// Centralised here because it's called from 4+ places:
 /// audio_provider, song_detail_screen, search_tab, related songs.
+Uri? _safeParseArtUri(String? url) {
+  if (url == null || url.trim().isEmpty) return null;
+  final clean = url.trim();
+  if (!clean.startsWith('http://') && !clean.startsWith('https://')) return null;
+  try {
+    final uri = Uri.parse(clean);
+    return (uri.hasScheme && uri.host.isNotEmpty) ? uri : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 MediaItem musicToMediaItem(Music music, [String? locale, dynamic downloadUrls]) {
   final rawUrls = downloadUrls ?? (music.toJson()['download_urls'] ?? music.toJson()['downloadUrl']);
   final parsedQualities = AdaptiveAudioQualitySelector.parseDownloadUrls(rawUrls);
   final rawId = music.rawStringId;
   final cleanRawId = rawId.trim();
-  final ytUrl = music.youtubeUrl ?? music.toJson()['youtube_url'] ?? music.toJson()['url'];
+  final jsonMap = music.toJson();
+  final ytUrl = music.youtubeUrl ?? jsonMap['youtube_url']?.toString() ?? jsonMap['url']?.toString();
   final isYt = music.isYouTubeSong ||
       (ytUrl != null &&
           (ytUrl.contains('youtube.com') ||
@@ -28,7 +41,7 @@ MediaItem musicToMediaItem(Music music, [String? locale, dynamic downloadUrls]) 
     artist: music.getDisplayArtists(locale ?? 'en'),
     album: music.getDisplayAlbum(locale ?? 'en') ?? '',
     duration: Duration(seconds: music.duration),
-    artUri: music.thumbUrl != null ? Uri.parse(music.thumbUrl!) : null,
+    artUri: _safeParseArtUri(music.thumbUrl),
     extras: {
       'raw_id': rawId,
       'audio_url': music.audioUrl,
@@ -64,7 +77,7 @@ MediaItem homeItemToMediaItem(HomeItem item, [dynamic downloadUrls]) {
     artist: item.displaySubtitle,
     album: item.isAlbum ? item.displayTitle : '',
     duration: item.duration != null ? Duration(seconds: item.duration!) : Duration.zero,
-    artUri: item.displayImage != null ? Uri.parse(item.displayImage!) : null,
+    artUri: _safeParseArtUri(item.displayImage),
     extras: {
       'raw_id': item.id,
       'type': item.type,

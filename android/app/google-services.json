@@ -7,20 +7,23 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:319455985483:android:ea45119eb1797a9643b2ce",
+        "mobilesdk_app_id": "1:319455985483:android:f63e297e5101fd1343b2ce",
         "android_client_info": {
-          "package_name": "com.inksyng.app.inksyng"
+          "package_name": "com.rhythm.rhythm_flutter"
         }
       },
       "oauth_client": [
         {
-          "client_id": "319455985483-b2fjdhl5nnatc1cthc73vo08t51kr90m.apps.googleusercontent.com",
-          "client_type": 3
+          "client_id": "319455985483-4ineqds8eoor1ediu7ivfbi6utme4olk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rhythm.rhythm_flutter",
+            "certificate_hash": "f44f775cb6f35095056b72c7240f6febfb3ea71c"
+          }
         },
         {
-          "client_id": "319455985483-androiddebug.apps.googleusercontent.com",
-          "client_type": 1,
-          "certificate_hash": "f44f775cb6f35095056b72c7240f6febfb3ea71c"
+          "client_id": "319455985483-b2fjdhl5nnatc1cthc73vo08t51kr90m.apps.googleusercontent.com",
+          "client_type": 3
         }
       ],
       "api_key": [

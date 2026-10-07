@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt_exp;
+import 'package:rhythm_flutter/core/config/app_config.dart';
 import 'package:rhythm_flutter/core/services/audio_quality_service.dart';
 
 /// Represents resolved YouTube audio streaming information with multiple quality streams
@@ -34,11 +36,11 @@ class _CachedYouTubeStream {
 /// Service dedicated to resolving direct audio streams for YouTube & YouTube Music tracks.
 ///
 /// Designed with cross-platform compatibility:
-/// - Web: Resolves streams from CORS-enabled endpoints (e.g. Piped/Invidious mirrors)
-/// - Desktop (Windows, macOS, Linux): Streams via media_kit / just_audio
-/// - Mobile (Android, iOS): Native playback with background notification controls
+/// - Native (Android, iOS, Desktop): Direct on-device extraction via YoutubeExplode (eliminating remote-IP 403 blocks)
+/// - Web: Resolves streams from CORS-enabled endpoints
 class YouTubeAudioService {
   final Dio _dio;
+  final yt_exp.YoutubeExplode _yt = yt_exp.YoutubeExplode();
   final Map<String, _CachedYouTubeStream> _cache = {};
 
   YouTubeAudioService([Dio? dio])
@@ -131,50 +133,127 @@ class YouTubeAudioService {
 
     debugPrint('YouTubeAudioService: Resolving YouTube stream for $videoId...');
 
-    // 2. Fast parallel check of top working mirrors with 3.5s timeout
+    // 2. Query FastAPI Backend stream endpoint (Path A: Server-Side Stream Resolver)
+    try {
+      final backendStreamUrl = '${AppConfig.baseUrl}/api/v1/streams/$videoId';
+      final response = await _dio.get<Map<String, dynamic>>(
+        backendStreamUrl,
+        options: Options(receiveTimeout: const Duration(seconds: 10)),
+      );
+      if (response.data != null && response.data!['audio_url'] != null) {
+        final data = response.data!;
+        final audioUrl = data['audio_url'] as String;
+        final rawDownloads = data['download_urls'];
+        final downloadUrls = <SongDownloadUrl>[];
+        if (rawDownloads is List) {
+          for (final item in rawDownloads) {
+            if (item is Map<String, dynamic> && item['url'] != null) {
+              downloadUrls.add(SongDownloadUrl(
+                quality: item['quality']?.toString() ?? '160kbps',
+                url: item['url'].toString(),
+              ));
+            }
+          }
+        }
+        if (downloadUrls.isEmpty) {
+          downloadUrls.add(SongDownloadUrl(quality: '160kbps', url: audioUrl));
+        }
+
+        final result = YouTubeAudioResult(
+          videoId: videoId,
+          bestAudioUrl: audioUrl,
+          downloadUrls: downloadUrls,
+          durationSeconds: data['duration'] is int ? data['duration'] as int : null,
+          title: data['title'] as String?,
+          author: data['author'] as String?,
+        );
+        _cache[videoId] = _CachedYouTubeStream(
+          result,
+          DateTime.now().add(const Duration(hours: 1)),
+        );
+        debugPrint('YouTubeAudioService: Successfully resolved stream via backend for $videoId');
+        return result;
+      }
+    } catch (e) {
+      debugPrint('YouTubeAudioService: Backend stream resolution skipped ($e), trying fallback extractors...');
+    }
+
+    // 2. Direct on-device extraction via YoutubeExplode (Safari Mobile Web client)
+    try {
+      final manifest = await _yt.videos.streamsClient.getManifest(
+        videoId,
+        ytClients: [
+          yt_exp.YoutubeApiClient.safari,
+        ],
+      ).timeout(const Duration(milliseconds: 2500));
+
+      final audioStreams = manifest.audioOnly.sortByBitrate();
+      final targetStreams = audioStreams.isNotEmpty ? audioStreams : manifest.muxed.sortByBitrate();
+
+      if (targetStreams.isNotEmpty) {
+        final bestStream = targetStreams.last;
+        final downloadUrls = targetStreams.reversed.map((s) {
+          final bitrateKbps = s.bitrate.kiloBitsPerSecond.round();
+          return SongDownloadUrl(
+            quality: '${bitrateKbps}kbps',
+            url: s.url.toString(),
+          );
+        }).toList();
+
+        final result = YouTubeAudioResult(
+          videoId: videoId,
+          bestAudioUrl: bestStream.url.toString(),
+          downloadUrls: downloadUrls,
+        );
+
+        _cache[videoId] = _CachedYouTubeStream(
+          result,
+          DateTime.now().add(const Duration(hours: 1)),
+        );
+        debugPrint(
+            'YouTubeAudioService: Successfully resolved client-side stream via YoutubeExplode for $videoId');
+        return result;
+      }
+    } catch (e) {
+      debugPrint(
+          'YouTubeAudioService: YoutubeExplode resolution skipped ($e), attempting fastest proxy mirror fallback...');
+    }
+
+    // 3. Fallback: Fast parallel mirror race with stream proxying to avoid 403 IP blocks
     final activeMirrors = [
-      'https://pipedapi.mha.fi',
-      'https://api.piped.privacydev.net',
-      'https://pipedapi.adminforge.de',
-      'https://pipedapi.leptons.xyz',
-      'https://piped-api.garudalinux.org',
-      'https://pipedapi.tokhmi.xyz',
       'https://invidious.nerdvpn.de',
       'https://inv.nadeko.net',
       'https://invidious.drgns.space',
       'https://vid.puffyan.us',
+      'https://api.piped.privacydev.net',
+      'https://pipedapi.adminforge.de',
+      'https://piped-api.garudalinux.org',
+      'https://pipedapi.tokhmi.xyz',
     ];
 
-    final futures = activeMirrors.map((mirror) async {
-      try {
-        final streamUrl = mirror.contains('piped') || mirror.contains('privacydev') || mirror.contains('adminforge') || mirror.contains('mha.fi') || mirror.contains('garudalinux') || mirror.contains('tokhmi')
-            ? '$mirror/streams/$videoId'
-            : '$mirror/api/v1/videos/$videoId';
-        final response = await _dio.get<Map<String, dynamic>>(
-          streamUrl,
-          options: Options(
-            receiveTimeout: const Duration(milliseconds: 3500),
-            headers: {
-              'User-Agent':
-                  'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-            },
-          ),
-        );
-        if (response.data != null) {
-          if ((mirror.contains('piped') || mirror.contains('privacydev') || mirror.contains('adminforge') || mirror.contains('mha.fi') || mirror.contains('garudalinux') || mirror.contains('tokhmi')) &&
-              response.data!['audioStreams'] is List) {
-            return _parsePipedStreams(videoId, response.data!);
-          } else if (response.data!['adaptiveFormats'] is List) {
-            return _parseInvidiousStreams(videoId, response.data!);
+    final completer = Completer<YouTubeAudioResult?>();
+    int pending = activeMirrors.length;
+
+    for (final mirror in activeMirrors) {
+      _fetchFromMirror(mirror, videoId).then((res) {
+        if (res != null && res.bestAudioUrl.isNotEmpty && !completer.isCompleted) {
+          completer.complete(res);
+        } else {
+          pending--;
+          if (pending == 0 && !completer.isCompleted) {
+            completer.complete(null);
           }
         }
-      } catch (_) {}
-      return null;
-    });
+      }).catchError((_) {
+        pending--;
+        if (pending == 0 && !completer.isCompleted) {
+          completer.complete(null);
+        }
+      });
+    }
 
     try {
-      final results = await Future.wait(futures).timeout(const Duration(seconds: 5));
-      final resolved = results.firstWhere((r) => r != null && r.bestAudioUrl.isNotEmpty, orElse: () => null);
+      final resolved = await completer.future.timeout(const Duration(milliseconds: 3000));
       if (resolved != null) {
         _cache[videoId] = _CachedYouTubeStream(
           resolved,
@@ -187,7 +266,40 @@ class YouTubeAudioService {
     return null;
   }
 
-  YouTubeAudioResult? _parsePipedStreams(String videoId, Map<String, dynamic> data) {
+  Future<YouTubeAudioResult?> _fetchFromMirror(String mirror, String videoId) async {
+    try {
+      final isPiped = mirror.contains('piped') ||
+          mirror.contains('privacydev') ||
+          mirror.contains('adminforge') ||
+          mirror.contains('garudalinux') ||
+          mirror.contains('tokhmi');
+      final streamUrl = isPiped
+          ? '$mirror/streams/$videoId'
+          : '$mirror/api/v1/videos/$videoId';
+
+      final response = await _dio.get<Map<String, dynamic>>(
+        streamUrl,
+        options: Options(
+          receiveTimeout: const Duration(milliseconds: 2500),
+          headers: {
+            'User-Agent':
+                'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+          },
+        ),
+      );
+
+      if (response.data != null) {
+        if (isPiped && response.data!['audioStreams'] is List) {
+          return _parsePipedStreams(videoId, response.data!, mirror);
+        } else if (response.data!['adaptiveFormats'] is List) {
+          return _parseInvidiousStreams(videoId, response.data!, mirror);
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  YouTubeAudioResult? _parsePipedStreams(String videoId, Map<String, dynamic> data, [String? mirror]) {
     final rawAudio = data['audioStreams'] as List?;
     if (rawAudio == null || rawAudio.isEmpty) return null;
 
@@ -197,8 +309,15 @@ class YouTubeAudioService {
 
     for (final item in rawAudio) {
       if (item is Map<String, dynamic>) {
-        final url = item['url']?.toString();
+        var url = item['url']?.toString();
         if (url == null || url.isEmpty) continue;
+
+        // Proxy through mirror if direct googlevideo to prevent 403 IP mismatch on phone
+        if (url.contains('googlevideo.com') && mirror != null) {
+          url = '$mirror/proxy?url=${Uri.encodeQueryComponent(url)}';
+        } else if (url.startsWith('/') && mirror != null) {
+          url = '$mirror$url';
+        }
 
         final bitrate = item['bitrate'] is num ? (item['bitrate'] as num).toInt() : 0;
         final qualityStr = item['quality']?.toString() ?? '${(bitrate / 1000).round()}kbps';
@@ -230,7 +349,7 @@ class YouTubeAudioService {
     );
   }
 
-  YouTubeAudioResult? _parseInvidiousStreams(String videoId, Map<String, dynamic> data) {
+  YouTubeAudioResult? _parseInvidiousStreams(String videoId, Map<String, dynamic> data, [String? mirror]) {
     final rawFormats = data['adaptiveFormats'] as List?;
     if (rawFormats == null || rawFormats.isEmpty) return null;
 
@@ -243,8 +362,16 @@ class YouTubeAudioService {
         final type = item['type']?.toString() ?? '';
         if (!type.startsWith('audio/')) continue;
 
-        final url = item['url']?.toString();
+        var url = item['url']?.toString();
         if (url == null || url.isEmpty) continue;
+
+        // Route through Invidious videoplayback proxy to avoid 403 IP block
+        if (url.contains('googlevideo.com') && mirror != null) {
+          final itag = item['itag']?.toString() ?? '140';
+          url = '$mirror/videoplayback?id=$videoId&itag=$itag';
+        } else if (url.startsWith('/') && mirror != null) {
+          url = '$mirror$url';
+        }
 
         final bitrate = item['bitrate'] is num
             ? (item['bitrate'] as num).toInt()

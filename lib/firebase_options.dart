@@ -46,7 +46,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBSvuW7tfAuwCMoe4E9Ks3XOI3YZTjf8Dw',
-    appId: '1:319455985483:android:ea45119eb1797a9643b2ce',
+    appId: '1:319455985483:android:f63e297e5101fd1343b2ce',
     messagingSenderId: '319455985483',
     projectId: 'rhythm-39358',
     storageBucket: 'rhythm-39358.firebasestorage.app',
