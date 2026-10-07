@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:rhythm_flutter/features/album/presentation/album_detail_screen.dart';
 import 'package:rhythm_flutter/features/artist/presentation/artist_detail_screen.dart';
 import 'package:rhythm_flutter/features/auth/presentation/login_screen.dart';
-import 'package:rhythm_flutter/features/auth/presentation/registration_screen.dart';
 import 'package:rhythm_flutter/features/auth/providers/auth_provider.dart';
 import 'package:rhythm_flutter/features/main_shell/presentation/main_screen.dart';
 import 'package:rhythm_flutter/features/playlist/presentation/playlist_detail_screen.dart';
@@ -40,10 +39,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
-      ),
-      GoRoute(
-        path: '/register',
-        builder: (context, state) => const RegistrationScreen(),
       ),
       GoRoute(
         path: '/profile-creation',
@@ -259,9 +254,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final isSplash = state.matchedLocation == '/splash';
       final isLogin = state.matchedLocation == '/login';
-      final isRegister = state.matchedLocation == '/register';
       final isProfileCreation = state.matchedLocation == '/profile-creation';
-
 
       // If at splash, don't redirect yet (splash handles its own timer)
       if (isSplash) return null;
@@ -270,7 +263,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final hasProfile = authState.hasProfile;
 
       if (!isLoggedIn) {
-        if (isLogin || isRegister) return null;
+        if (isLogin) return null;
         return '/login';
       }
 
@@ -280,7 +273,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // If logged in and has profile, but trying to access auth screens
-      if (isLogin || isRegister || isProfileCreation) {
+      if (isLogin || isProfileCreation) {
         return '/';
       }
 

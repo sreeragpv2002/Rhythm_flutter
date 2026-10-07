@@ -5,8 +5,9 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:rhythm_flutter/app.dart';
-import 'package:rhythm_flutter/core/services/audio_handler.dart';
 import 'package:rhythm_flutter/core/services/storage_service.dart';
 import 'package:rhythm_flutter/core/config/app_config.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -16,10 +17,20 @@ import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
 void main() async {
   debugPrint('Main: Starting application');
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  if (!kIsWeb) {
+    try {
+      FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+    } catch (_) {}
+  }
 
   // Initialize MediaKit for desktop support
-  MediaKit.ensureInitialized();
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    try {
+      MediaKit.ensureInitialized();
+    } catch (e) {
+      debugPrint('Main: MediaKit initialization error: $e');
+    }
+  }
 
   // Initialize Firebase
   try {
@@ -85,5 +96,9 @@ void main() async {
     ),
   );
 
-  FlutterNativeSplash.remove();
+  if (!kIsWeb) {
+    try {
+      FlutterNativeSplash.remove();
+    } catch (_) {}
+  }
 }

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rhythm_flutter/core/animations/app_animations.dart';
 import 'package:rhythm_flutter/core/theme/spacing.dart';
+import 'package:rhythm_flutter/core/theme/scroll_physics.dart';
 import 'package:rhythm_flutter/core/widgets/shimmer_loading.dart';
 import 'package:rhythm_flutter/features/home/data/models/home_feed.dart';
 import 'package:rhythm_flutter/features/home/presentation/widgets/home_item_card.dart';
@@ -61,6 +62,7 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
     handler.loadPlaylist(
       mediaItems,
       initialIndex: (startIndex >= 0 && startIndex < mediaItems.length) ? startIndex : 0,
+      source: QueueSource.playlist,
     );
   }
 
@@ -103,7 +105,7 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
           final bool hasSongs = items.any((i) => i.isSong);
 
           return CustomScrollView(
-            physics: const BouncingScrollPhysics(),
+            physics: AppScrollPhysics.adaptive,
             slivers: [
               // ── Modern Sliver App Bar with Ambient Header ──
               SliverAppBar(

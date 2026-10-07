@@ -11,6 +11,16 @@ MediaItem musicToMediaItem(Music music, [String? locale, dynamic downloadUrls]) 
   final rawUrls = downloadUrls ?? (music.toJson()['download_urls'] ?? music.toJson()['downloadUrl']);
   final parsedQualities = AdaptiveAudioQualitySelector.parseDownloadUrls(rawUrls);
   final rawId = music.rawStringId;
+  final cleanRawId = rawId.trim();
+  final ytUrl = music.youtubeUrl ?? music.toJson()['youtube_url'] ?? music.toJson()['url'];
+  final isYt = music.isYouTubeSong ||
+      (ytUrl != null &&
+          (ytUrl.contains('youtube.com') ||
+              ytUrl.contains('youtu.be') ||
+              ytUrl.contains('music.youtube.com'))) ||
+      RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(cleanRawId) ||
+      cleanRawId.startsWith('yt_');
+  final resolvedYtUrl = ytUrl ?? (isYt ? 'https://music.youtube.com/watch?v=$cleanRawId' : null);
 
   return MediaItem(
     id: rawId,
@@ -22,6 +32,9 @@ MediaItem musicToMediaItem(Music music, [String? locale, dynamic downloadUrls]) 
     extras: {
       'raw_id': rawId,
       'audio_url': music.audioUrl,
+      'youtube_url': resolvedYtUrl,
+      'is_youtube': isYt,
+      'duration_formatted': music.durationFormatted,
       'titles': music.titles,
       'artist_names': music.artistNames,
       'album_titles': music.albumTitles,
@@ -34,18 +47,32 @@ MediaItem musicToMediaItem(Music music, [String? locale, dynamic downloadUrls]) 
 
 /// Converts a [HomeItem] into an [audio_service.MediaItem] for playback.
 MediaItem homeItemToMediaItem(HomeItem item, [dynamic downloadUrls]) {
-  final parsedQualities = AdaptiveAudioQualitySelector.parseDownloadUrls(downloadUrls);
+  final rawUrls = downloadUrls ?? item.downloadUrls;
+  final parsedQualities = AdaptiveAudioQualitySelector.parseDownloadUrls(rawUrls);
+  final cleanId = item.id.trim();
+  final isYt = (item.youtubeUrl != null &&
+          (item.youtubeUrl!.contains('youtube.com') ||
+              item.youtubeUrl!.contains('youtu.be') ||
+              item.youtubeUrl!.contains('music.youtube.com'))) ||
+      RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(cleanId) ||
+      cleanId.startsWith('yt_');
+  final ytUrl = item.youtubeUrl ?? (isYt ? 'https://music.youtube.com/watch?v=$cleanId' : null);
 
   return MediaItem(
     id: item.id,
     title: item.displayTitle,
     artist: item.displaySubtitle,
     album: item.isAlbum ? item.displayTitle : '',
+    duration: item.duration != null ? Duration(seconds: item.duration!) : Duration.zero,
     artUri: item.displayImage != null ? Uri.parse(item.displayImage!) : null,
     extras: {
+      'raw_id': item.id,
       'type': item.type,
       'language': item.language,
       'image_url': item.displayImage,
+      'audio_url': item.audioUrl,
+      'youtube_url': ytUrl,
+      'is_youtube': isYt,
       if (parsedQualities.isNotEmpty)
         'download_urls': parsedQualities.map((e) => e.toJson()).toList(),
     },

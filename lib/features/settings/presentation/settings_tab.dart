@@ -5,6 +5,7 @@ import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
 import 'package:rhythm_flutter/core/services/audio_quality_service.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
 import 'package:rhythm_flutter/core/theme/spacing.dart';
+import 'package:rhythm_flutter/core/theme/scroll_physics.dart';
 import 'package:rhythm_flutter/core/widgets/glass_card.dart';
 import 'package:rhythm_flutter/features/auth/providers/auth_provider.dart';
 import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
@@ -39,7 +40,7 @@ class SettingsTab extends ConsumerWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 750),
           child: ListView(
-            physics: const BouncingScrollPhysics(),
+            physics: AppScrollPhysics.adaptive,
             padding: EdgeInsets.fromLTRB(
               AppSpacing.md,
               AppSpacing.md,

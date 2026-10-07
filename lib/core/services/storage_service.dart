@@ -41,6 +41,7 @@ class StorageService {
   Future<void> setUserLanguages(List<String> langs) => _prefs.setStringList('user_languages', langs);
 
   String? get currentUserId => _prefs.getString('user_id') ?? _prefs.getString('firebase_user_id');
+  String? get userId => currentUserId;
   Future<void> setUserId(String? value) => value != null
       ? _prefs.setString('user_id', value)
       : _prefs.remove('user_id');

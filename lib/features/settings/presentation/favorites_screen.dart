@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:rhythm_flutter/core/animations/app_animations.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
 import 'package:rhythm_flutter/core/theme/spacing.dart';
+import 'package:rhythm_flutter/core/theme/scroll_physics.dart';
 import 'package:rhythm_flutter/features/home/data/models/home_feed.dart';
 import 'package:rhythm_flutter/features/home/data/models/music.dart';
 import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
@@ -100,7 +101,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
         color: AppColors.primaryLight,
         backgroundColor: isDark ? const Color(0xFF1E1E2E) : Colors.white,
         child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          physics: AppScrollPhysics.alwaysScrollableAdaptive,
           slivers: [
             // ── Modern Glassmorphic App Bar ──
             SliverAppBar(
@@ -292,7 +293,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                                 final mediaItems = filteredSongs
                                     .map((s) => homeItemToMediaItem(s))
                                     .toList();
-                                handler.loadPlaylist(mediaItems, initialIndex: 0);
+                                handler.loadPlaylist(
+                                  mediaItems,
+                                  initialIndex: 0,
+                                  source: QueueSource.playlist,
+                                );
                               },
                               icon: const Icon(Icons.play_arrow_rounded, size: 22, color: Colors.white),
                               label: const Text(
@@ -323,7 +328,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                                 final mediaItems = List<MediaItem>.from(
                                   filteredSongs.map((s) => homeItemToMediaItem(s)),
                                 )..shuffle();
-                                handler.loadPlaylist(mediaItems, initialIndex: 0);
+                                handler.loadPlaylist(
+                                  mediaItems,
+                                  initialIndex: 0,
+                                  source: QueueSource.playlist,
+                                );
                               },
                               icon: Icon(
                                 Icons.shuffle_rounded,
@@ -459,7 +468,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                             final mediaItems = filteredSongs
                                 .map((s) => homeItemToMediaItem(s))
                                 .toList();
-                            handler.loadPlaylist(mediaItems, initialIndex: index);
+                            handler.loadPlaylist(
+                              mediaItems,
+                              initialIndex: index,
+                              source: QueueSource.playlist,
+                            );
                           },
                           onLikeToggle: () async {
                             HapticFeedback.selectionClick();

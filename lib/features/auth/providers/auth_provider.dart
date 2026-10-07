@@ -144,7 +144,11 @@ class Auth extends _$Auth {
         userCredential =
             await FirebaseAuth.instance.signInWithPopup(googleProvider);
       } else {
-        final GoogleSignIn googleSignIn = GoogleSignIn();
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          serverClientId:
+              '319455985483-b2fjdhl5nnatc1cthc73vo08t51kr90m.apps.googleusercontent.com',
+          scopes: ['email', 'profile'],
+        );
         final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
           // User cancelled selection

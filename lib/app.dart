@@ -8,6 +8,7 @@ import 'package:rhythm_flutter/core/router/app_router.dart';
 import 'package:rhythm_flutter/core/theme/app_theme.dart';
 import 'package:rhythm_flutter/shared/providers/theme_provider.dart';
 import 'package:flutter/services.dart';
+import 'package:rhythm_flutter/core/theme/scroll_physics.dart';
 import 'package:rhythm_flutter/features/player/presentation/player_intents.dart';
 
 class RhythmApp extends ConsumerWidget {
@@ -76,16 +77,31 @@ class RhythmApp extends ConsumerWidget {
           darkTheme: AppTheme.darkTheme,
           themeMode: themeMode,
 
-          // Desktop & Web smooth scrolling
-          scrollBehavior: const MaterialScrollBehavior().copyWith(
-            dragDevices: {
-              PointerDeviceKind.touch,
-              PointerDeviceKind.stylus,
-              PointerDeviceKind.trackpad,
-            },
-          ),
+          // Adaptive smooth scrolling with distinct Web and Mobile physics
+          scrollBehavior: const AppCustomScrollBehavior(),
         ),
       ),
     );
   }
 }
+
+/// Scroll behavior providing distinct scroll physics and input devices for Web vs Mobile:
+/// - Web/Desktop: [ClampingScrollPhysics]
+/// - Mobile: [BouncingScrollPhysics]
+class AppCustomScrollBehavior extends MaterialScrollBehavior {
+  const AppCustomScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.stylus,
+        PointerDeviceKind.trackpad,
+      };
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return AppScrollPhysics.adaptive;
+  }
+}
+

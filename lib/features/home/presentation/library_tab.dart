@@ -6,6 +6,7 @@ import 'package:rhythm_flutter/core/animations/app_animations.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
 import 'package:rhythm_flutter/core/theme/spacing.dart';
+import 'package:rhythm_flutter/core/theme/scroll_physics.dart';
 import 'package:rhythm_flutter/core/widgets/music_list_tile.dart';
 import 'package:rhythm_flutter/features/home/data/models/home_feed.dart';
 import 'package:rhythm_flutter/features/home/data/models/music.dart';
@@ -182,7 +183,7 @@ class _LibraryTabState extends ConsumerState<LibraryTab> with SingleTickerProvid
     String locale,
   ) {
     return ListView.builder(
-      physics: const BouncingScrollPhysics(),
+      physics: AppScrollPhysics.adaptive,
       padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, 100),
       itemCount: favoriteSongs.length,
       itemBuilder: (context, index) {
@@ -223,7 +224,11 @@ class _LibraryTabState extends ConsumerState<LibraryTab> with SingleTickerProvid
                   artUri: m.thumbUrl != null ? Uri.parse(m.thumbUrl!) : null,
                 );
               }).toList();
-              handler.loadPlaylist(mediaItems, initialIndex: index);
+              handler.loadPlaylist(
+                mediaItems,
+                initialIndex: index,
+                source: QueueSource.playlist,
+              );
             },
           ),
         );
@@ -286,7 +291,7 @@ class _LibraryTabState extends ConsumerState<LibraryTab> with SingleTickerProvid
           }
 
           return ListView.builder(
-            physics: const BouncingScrollPhysics(),
+            physics: AppScrollPhysics.adaptive,
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
             itemCount: customPlaylists.length + 1,
             itemBuilder: (context, index) {

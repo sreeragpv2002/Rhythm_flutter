@@ -7,6 +7,7 @@ import 'package:rhythm_flutter/core/animations/app_animations.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
 import 'package:rhythm_flutter/core/theme/spacing.dart';
+import 'package:rhythm_flutter/core/theme/scroll_physics.dart';
 import 'package:rhythm_flutter/core/widgets/shimmer_loading.dart';
 import 'package:rhythm_flutter/features/auth/providers/auth_provider.dart';
 import 'package:rhythm_flutter/features/home/data/models/home_feed.dart';
@@ -112,9 +113,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
           onRefresh: () => ref.read(homeProvider.notifier).fetchHomeFeed(),
           displacement: AppSpacing.xl,
           child: CustomScrollView(
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
-            ),
+            physics: AppScrollPhysics.alwaysScrollableAdaptive,
             slivers: [
               // ── Hero Ambient Glow & Greeting Header ──
               SliverToBoxAdapter(
@@ -180,7 +179,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                       // ── Filter Pills ──
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
+                        physics: AppScrollPhysics.adaptive,
                         child: Row(
                           children: [
                             _FilterPill(
@@ -231,12 +230,11 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           isDark: isDark,
                           onItemTap: (item) {
                             if (item.isSong) {
-                              final mediaItems = quickPlayItems
-                                  .map((i) => homeItemToMediaItem(i))
-                                  .toList();
-                              final index = quickPlayItems.indexOf(item);
-                              handler.loadPlaylist(mediaItems,
-                                  initialIndex: index >= 0 ? index : 0);
+                              handler.loadPlaylist(
+                                [homeItemToMediaItem(item)],
+                                initialIndex: 0,
+                                source: QueueSource.song,
+                              );
                             } else if (item.isAlbum) {
                               context.push('/album/${item.id}');
                             } else if (item.isPlaylist) {
@@ -363,7 +361,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                         height: (section.slug == 'top_artists' || (items.isNotEmpty && items.first.isArtist)) ? 150 : 205,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(),
+                          physics: AppScrollPhysics.adaptive,
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.md,
                           ),
@@ -384,20 +382,10 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                                   item: item,
                                   onTap: () {
                                     if (item.isSong) {
-                                      final songItems =
-                                          items.where((i) => i.isSong).toList();
-                                      final songIndex =
-                                          songItems.indexOf(item);
-                                      final mediaItems = (songItems.isNotEmpty
-                                              ? songItems
-                                              : items)
-                                          .map((i) => homeItemToMediaItem(i))
-                                          .toList();
                                       handler.loadPlaylist(
-                                        mediaItems,
-                                        initialIndex: songIndex >= 0
-                                            ? songIndex
-                                            : index,
+                                        [homeItemToMediaItem(item)],
+                                        initialIndex: 0,
+                                        source: QueueSource.song,
                                       );
                                     } else if (item.isAlbum) {
                                       context.push('/album/${item.id}');

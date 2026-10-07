@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
+import 'package:rhythm_flutter/core/theme/scroll_physics.dart';
 import 'package:rhythm_flutter/features/home/providers/home_provider.dart';
 import 'package:rhythm_flutter/features/language/data/models/language_model.dart';
 import 'package:rhythm_flutter/features/language/providers/language_provider.dart';
@@ -258,7 +259,7 @@ class _LanguageSelectionScreenState
                         ),
                       )
                     : GridView.builder(
-                        physics: const BouncingScrollPhysics(),
+                        physics: AppScrollPhysics.adaptive,
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: isDesktop ? 4 : (width >= 600 ? 3 : 2),

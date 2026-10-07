@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rhythm_flutter/core/animations/app_animations.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
+import 'package:rhythm_flutter/core/theme/scroll_physics.dart';
 import 'package:rhythm_flutter/features/home/data/models/home_feed.dart';
 import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
 import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
@@ -136,7 +137,7 @@ class _MobileUserPlaylistView extends ConsumerWidget {
     final songs = playlist.songs;
 
     return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
+      physics: AppScrollPhysics.adaptive,
       slivers: [
         // ── Sliver App Bar with Artwork & Info ──
         SliverAppBar(
@@ -264,7 +265,11 @@ class _MobileUserPlaylistView extends ConsumerWidget {
                         : () {
                             HapticFeedback.lightImpact();
                             final mediaItems = playlist.toMediaItems();
-                            handler.loadPlaylist(mediaItems, initialIndex: 0);
+                            handler.loadPlaylist(
+                              mediaItems,
+                              initialIndex: 0,
+                              source: QueueSource.playlist,
+                            );
                           },
                     icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
                     label: const Text(
@@ -291,7 +296,11 @@ class _MobileUserPlaylistView extends ConsumerWidget {
                         : () {
                             HapticFeedback.lightImpact();
                             final mediaItems = playlist.toMediaItems();
-                            handler.loadPlaylist(mediaItems, initialIndex: 0);
+                            handler.loadPlaylist(
+                              mediaItems,
+                              initialIndex: 0,
+                              source: QueueSource.playlist,
+                            );
                             handler.setShuffleEnabled(true);
                           },
                     icon: Icon(
@@ -420,7 +429,11 @@ class _MobileUserPlaylistView extends ConsumerWidget {
                       isFavorite: isFav,
                       onTap: () {
                         final mediaItems = playlist.toMediaItems();
-                        handler.loadPlaylist(mediaItems, initialIndex: index);
+                        handler.loadPlaylist(
+                          mediaItems,
+                          initialIndex: index,
+                          source: QueueSource.playlist,
+                        );
                       },
                       onFavoriteToggle: () {
                         ref.read(favoritesProvider.notifier).toggleFavorite(song.id);
@@ -538,7 +551,11 @@ class _DesktopUserPlaylistView extends ConsumerWidget {
                           ? null
                           : () {
                               final mediaItems = playlist.toMediaItems();
-                              handler.loadPlaylist(mediaItems, initialIndex: 0);
+                              handler.loadPlaylist(
+                                mediaItems,
+                                initialIndex: 0,
+                                source: QueueSource.playlist,
+                              );
                             },
                       icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
                       label: const Text('Play All', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -556,7 +573,11 @@ class _DesktopUserPlaylistView extends ConsumerWidget {
                         ? null
                         : () {
                             final mediaItems = playlist.toMediaItems();
-                            handler.loadPlaylist(mediaItems, initialIndex: 0);
+                            handler.loadPlaylist(
+                              mediaItems,
+                              initialIndex: 0,
+                              source: QueueSource.playlist,
+                            );
                             handler.setShuffleEnabled(true);
                           },
                     icon: const Icon(Icons.shuffle_rounded),
@@ -606,7 +627,11 @@ class _DesktopUserPlaylistView extends ConsumerWidget {
                       isFavorite: isFav,
                       onTap: () {
                         final mediaItems = playlist.toMediaItems();
-                        handler.loadPlaylist(mediaItems, initialIndex: index);
+                        handler.loadPlaylist(
+                          mediaItems,
+                          initialIndex: index,
+                          source: QueueSource.playlist,
+                        );
                       },
                       onFavoriteToggle: () {
                         ref.read(favoritesProvider.notifier).toggleFavorite(song.id);

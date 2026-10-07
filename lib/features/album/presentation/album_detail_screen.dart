@@ -7,6 +7,7 @@ import 'package:rhythm_flutter/core/animations/app_animations.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
 import 'package:rhythm_flutter/core/theme/spacing.dart';
+import 'package:rhythm_flutter/core/theme/scroll_physics.dart';
 import 'package:rhythm_flutter/core/widgets/shimmer_loading.dart';
 import 'package:rhythm_flutter/features/album/data/models/album_detail.dart';
 import 'package:rhythm_flutter/features/album/providers/album_provider.dart';
@@ -67,7 +68,7 @@ class _MobileAlbumView extends ConsumerWidget {
     final handler = ref.read(audioHandlerProvider);
 
     return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
+      physics: AppScrollPhysics.adaptive,
       slivers: [
         // ── Sliver App Bar with Dynamic Glow Header ──
         SliverAppBar(
@@ -290,7 +291,11 @@ class _MobileAlbumView extends ConsumerWidget {
                     isDark: isDark,
                     onTap: () {
                       final mediaItems = album.toMediaItems(locale);
-                      handler.loadPlaylist(mediaItems, initialIndex: index);
+                      handler.loadPlaylist(
+                        mediaItems,
+                        initialIndex: index,
+                        source: QueueSource.album,
+                      );
                     },
                     onFavoriteToggle: () async {
                       await ref
@@ -392,7 +397,7 @@ class _DesktopAlbumView extends ConsumerWidget {
                 SizedBox(
                   width: 380,
                   child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
+                    physics: AppScrollPhysics.adaptive,
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -461,7 +466,7 @@ class _DesktopAlbumView extends ConsumerWidget {
                 // Right Column: Tracklist & Release Info
                 Expanded(
                   child: ListView.builder(
-                    physics: const BouncingScrollPhysics(),
+                    physics: AppScrollPhysics.adaptive,
                     padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
                     itemCount: album.songs.length + 1,
                     itemBuilder: (context, index) {
@@ -482,7 +487,11 @@ class _DesktopAlbumView extends ConsumerWidget {
                         isDark: isDark,
                         onTap: () {
                           final mediaItems = album.toMediaItems(locale);
-                          handler.loadPlaylist(mediaItems, initialIndex: index);
+                          handler.loadPlaylist(
+                            mediaItems,
+                            initialIndex: index,
+                            source: QueueSource.album,
+                          );
                         },
                         onFavoriteToggle: () async {
                           await ref
@@ -706,7 +715,11 @@ class _AlbumActionButtons extends ConsumerWidget {
             onTap: () {
               if (album.songs.isNotEmpty) {
                 final mediaItems = album.toMediaItems(locale);
-                handler.loadPlaylist(mediaItems, initialIndex: 0);
+                handler.loadPlaylist(
+                  mediaItems,
+                  initialIndex: 0,
+                  source: QueueSource.album,
+                );
               }
             },
             child: Container(
@@ -751,7 +764,11 @@ class _AlbumActionButtons extends ConsumerWidget {
               if (album.songs.isNotEmpty) {
                 final mediaItems =
                     List.of(album.toMediaItems(locale))..shuffle();
-                handler.loadPlaylist(mediaItems, initialIndex: 0);
+                handler.loadPlaylist(
+                  mediaItems,
+                  initialIndex: 0,
+                  source: QueueSource.album,
+                );
               }
             },
             child: Container(
@@ -824,7 +841,7 @@ class _ArtistsAvatarRow extends StatelessWidget {
           height: 80,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
+            physics: AppScrollPhysics.adaptive,
             itemCount: artists.length,
             separatorBuilder: (_, __) => const SizedBox(width: 14),
             itemBuilder: (context, index) {

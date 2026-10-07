@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:audio_service/audio_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -5,47 +6,135 @@ import 'package:just_audio/just_audio.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:rhythm_flutter/core/services/media_item_mapper.dart';
+import 'package:rhythm_flutter/features/home/data/models/home_feed.dart';
 import 'package:rhythm_flutter/core/config/app_config.dart';
 import 'package:rhythm_flutter/core/services/audio_quality_service.dart';
 import 'package:rhythm_flutter/core/services/storage_service.dart';
+import 'package:rhythm_flutter/core/services/youtube_audio_service.dart';
+import 'package:rhythm_flutter/core/services/web_youtube_player/web_youtube_player.dart';
 
-/// Custom AudioHandler that manages playback with just_audio
-/// and integrates with audio_service for background + notification controls.
+/// Represents the origin of the currently loaded playback queue.
+enum QueueSource {
+  song, // Standalone song play -> uses suggested_songs for upcoming tracks
+  album, // Full album tracklist
+  playlist, // Full playlist tracklist
+  artist, // Full artist discography / top songs
+}
+
+/// Custom AudioHandler that manages playback with just_audio (Mobile/Desktop)
+/// and WebYouTubePlayer (Web), integrating with audio_service for notifications and state.
 class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final AudioPlayer _player = AudioPlayer();
+  final WebYouTubePlayerBase _webPlayer = createWebYouTubePlayer();
+  bool _isUsingWebPlayer = false;
+  int _consecutiveErrors = 0;
+  final BehaviorSubject<PositionData> _positionDataSubject =
+      BehaviorSubject<PositionData>.seeded(PositionData(Duration.zero, Duration.zero, Duration.zero));
+
   String _baseStreamUrl;
   final StorageService _storage;
   final NetworkSpeedService _networkSpeedService;
+  final YouTubeAudioService _youtubeAudioService;
+  int _currentIndex = 0;
+  QueueSource _queueSource = QueueSource.song;
+
+  QueueSource get queueSource => _queueSource;
 
   RhythmAudioHandler(
     this._baseStreamUrl,
     this._storage, [
     NetworkSpeedService? networkSpeedService,
-  ]) : _networkSpeedService = networkSpeedService ?? NetworkSpeedService() {
-    // Broadcast playback state changes by combining event and state streams.
-    // This ensures play/pause changes (which emit in playerStateStream)
-    // always trigger a playbackState update for the UI.
+    YouTubeAudioService? youtubeAudioService,
+  ])  : _networkSpeedService = networkSpeedService ?? NetworkSpeedService(),
+        _youtubeAudioService = youtubeAudioService ?? YouTubeAudioService() {
+    // Broadcast playback state changes from just_audio when not using WebYouTubePlayer
     Rx.combineLatest2<PlaybackEvent, PlayerState, PlaybackState>(
       _player.playbackEventStream.startWith(_player.playbackEvent),
       _player.playerStateStream,
       (event, state) => _transformEvent(event),
-    ).listen(playbackState.add);
-
-    _initAudioSession();
-
-    // Listen for current index changes to update mediaItem and record recent plays
-    _player.currentIndexStream.listen((index) {
-      if (index != null && queue.value.isNotEmpty && index < queue.value.length) {
-        final item = queue.value[index];
-        mediaItem.add(item);
-        _recordRecentPlay(item.id);
+    ).listen((state) {
+      if (!_isUsingWebPlayer) {
+        playbackState.add(state);
       }
     });
 
-    // Listen for when a song completes to auto-play next
+    // Wire just_audio position stream to _positionDataSubject
+    Rx.combineLatest3<Duration, Duration, Duration?, PositionData>(
+      _player.positionStream,
+      _player.bufferedPositionStream,
+      _player.durationStream,
+      (position, bufferedPosition, duration) => PositionData(
+        position,
+        bufferedPosition,
+        duration ?? Duration.zero,
+      ),
+    ).listen((data) {
+      if (!_isUsingWebPlayer) {
+        _positionDataSubject.add(data);
+      }
+    });
+
+    // Web YouTube Player listeners
+    _webPlayer.playingStream.listen((isPlaying) {
+      if (_isUsingWebPlayer) {
+        _broadcastWebPlayerState();
+      }
+    });
+
+    _webPlayer.positionStream.listen((pos) {
+      if (_isUsingWebPlayer) {
+        final dur = (mediaItem.value?.duration != null && mediaItem.value!.duration! > Duration.zero)
+            ? mediaItem.value!.duration!
+            : _webPlayer.totalDuration;
+        _positionDataSubject.add(PositionData(pos, pos, dur));
+      }
+    });
+
+    _webPlayer.songEndedStream.listen((_) {
+      if (_isUsingWebPlayer) {
+        if (_player.loopMode == LoopMode.one) {
+          _webPlayer.seek(Duration.zero);
+          _webPlayer.resume();
+        } else {
+          skipToNext();
+        }
+      }
+    });
+
+    _webPlayer.errorStream.listen((_) {
+      if (_isUsingWebPlayer) {
+        debugPrint('AudioHandler: WebYouTubePlayer encountered error');
+        _consecutiveErrors++;
+        if (_consecutiveErrors < 3) {
+          skipToNext();
+        } else {
+          _consecutiveErrors = 0;
+          pause();
+        }
+      }
+    });
+
+    _initAudioSession();
+
+    // Listen for current index changes to update mediaItem
+    _player.currentIndexStream.listen((index) {
+      if (index != null && queue.value.isNotEmpty && index < queue.value.length) {
+        _currentIndex = index;
+        final item = queue.value[index];
+        mediaItem.add(item);
+      }
+    });
+
+    // Listen for when a song completes to auto-play next (just_audio)
     _player.processingStateStream.listen((state) {
-      if (state == ProcessingState.completed) {
-        skipToNext();
+      if (state == ProcessingState.completed && !_isUsingWebPlayer) {
+        if (_player.loopMode == LoopMode.one) {
+          _player.seek(Duration.zero);
+          _player.play();
+        } else {
+          skipToNext();
+        }
       }
     });
 
@@ -58,7 +147,7 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
   Future<void> _initAudioSession() async {
     final session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration.music());
-    
+
     // Request notification permission on Android 13+ so media controls show in notification shade
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
@@ -104,6 +193,7 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
 
   AudioPlayer get player => _player;
   NetworkSpeedService get networkSpeedService => _networkSpeedService;
+  int get currentIndex => _currentIndex;
 
   void updateBaseUrl(String newUrl) {
     debugPrint('AudioHandler: Updating base URL from $_baseStreamUrl to $newUrl');
@@ -114,7 +204,7 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
 
   Map<String, String> _getAuthHeaders() {
     final token = _storage.accessToken;
-    if (token != null) {
+    if (token != null && token.isNotEmpty && token != 'guest_token') {
       return {'Authorization': 'Bearer $token'};
     }
     return {};
@@ -128,86 +218,367 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
         connectTimeout: const Duration(seconds: 8),
         receiveTimeout: const Duration(seconds: 8),
       ));
-      final directUrl = '${AppConfig.baseUrl}/api/v1/songs/$songId';
-      final response = await dio.get(directUrl);
-      if (response.data != null) {
-        final dynamic raw = response.data['data'] ?? response.data;
-        if (raw is Map<String, dynamic>) {
-          return raw;
+
+      // 1. Unified details endpoint: /api/v1/details?type=song&id=$songId
+      try {
+        final detailsUrl = '${AppConfig.baseUrl}/api/v1/details';
+        final queryParams = <String, dynamic>{'type': 'song', 'id': songId};
+        final uid = _storage.userId;
+        if (uid != null && uid.isNotEmpty) {
+          queryParams['user_id'] = uid;
         }
-      }
+        final response = await dio.get<dynamic>(
+          detailsUrl,
+          queryParameters: queryParams,
+        );
+        final responseData = response.data;
+        if (responseData is Map<String, dynamic> && responseData['success'] == true) {
+          final dynamic raw = responseData['data'];
+          if (raw is Map<String, dynamic>) {
+            return raw;
+          }
+        }
+      } catch (_) {}
+
+      // 2. Try /api/v1/songs/$songId
+      try {
+        final directUrl = '${AppConfig.baseUrl}/api/v1/songs/$songId';
+        final response = await dio.get<dynamic>(directUrl);
+        final responseData = response.data;
+        if (responseData is Map<String, dynamic>) {
+          final dynamic raw = responseData['data'] ?? responseData;
+          if (raw is Map<String, dynamic>) {
+            return raw;
+          }
+        }
+      } catch (_) {}
     } catch (e) {
       debugPrint('AudioHandler: Error fetching song details for $songId: $e');
     }
     return null;
   }
 
-  // ── Playlist loading ──
+  /// Searches the backend as a fallback if song details are missing (e.g. legacy IDs)
+  Future<Map<String, dynamic>?> _searchSongFallback(String title, [String? artist]) async {
+    try {
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 6),
+        receiveTimeout: const Duration(seconds: 6),
+      ));
+      final query = [
+        title,
+        if (artist != null && artist.isNotEmpty && artist != 'Unknown' && artist != 'Song') artist
+      ].join(' ').trim();
+      final url = '${AppConfig.baseUrl}/api/v1/search/songs';
+      final response = await dio.get<dynamic>(url, queryParameters: {'query': query, 'limit': 1});
+      final data = response.data;
+      if (data is Map<String, dynamic> && data['songs'] is List && (data['songs'] as List).isNotEmpty) {
+        final firstSong = (data['songs'] as List).first;
+        if (firstSong is Map<String, dynamic>) {
+          return firstSong;
+        }
+      }
+    } catch (e) {
+      debugPrint('AudioHandler: Song search fallback error for "$title": $e');
+    }
+    return null;
+  }
+
+  // ── Playlist loading & Playback ──
 
   /// Load and play a list of songs, starting at the given index.
-  Future<void> loadPlaylist(List<MediaItem> items, {int initialIndex = 0}) async {
+  Future<void> loadPlaylist(
+    List<MediaItem> items, {
+    int initialIndex = 0,
+    QueueSource source = QueueSource.song,
+  }) async {
     if (items.isEmpty) return;
 
     final safeIndex = (initialIndex >= 0 && initialIndex < items.length) ? initialIndex : 0;
     final mutableItems = List<MediaItem>.from(items);
-    final targetId = mutableItems[safeIndex].id;
-    debugPrint('AudioHandler: loadPlaylist target ID: $targetId at index $safeIndex (total: ${mutableItems.length})');
-
-    // 1. If target item does not yet have a direct audio URL or download qualities, resolve it immediately!
-    final targetItem = mutableItems[safeIndex];
-    final hasAudioUrl = targetItem.extras?['audio_url'] != null && (targetItem.extras!['audio_url'] as String).isNotEmpty;
-    final hasDownloadUrls = targetItem.extras?['download_urls'] != null && (targetItem.extras!['download_urls'] as List).isNotEmpty;
-
-    if (!hasAudioUrl && !hasDownloadUrls) {
-      debugPrint('AudioHandler: Resolving stream URL for target item $targetId before playback...');
-      final details = await _fetchSongDetails(targetId);
-      if (details != null) {
-        final rawUrls = details['downloadUrl'] ?? details['download_url'] ?? details['download_urls'];
-        final qualities = AdaptiveAudioQualitySelector.parseDownloadUrls(rawUrls);
-        final updatedExtras = Map<String, dynamic>.from(targetItem.extras ?? {});
-        if (qualities.isNotEmpty) {
-          updatedExtras['download_urls'] = qualities.map((e) => e.toJson()).toList();
-          updatedExtras['audio_url'] = qualities.last.url;
-        } else if (details['audio_url'] != null) {
-          updatedExtras['audio_url'] = details['audio_url'];
-        }
-        mutableItems[safeIndex] = targetItem.copyWith(extras: updatedExtras);
-      }
-    }
-
+    _currentIndex = safeIndex;
+    _queueSource = source;
     queue.add(mutableItems);
-    final headers = _getAuthHeaders();
-    final audioSources = mutableItems.map((item) => _createAudioSource(item, headers)).toList();
 
-    try {
-      await _player.setAudioSources(audioSources, initialIndex: safeIndex);
-      await _player.play();
-      debugPrint('AudioHandler: Playback started successfully for index $safeIndex');
-    } on PlayerException catch (e) {
-      debugPrint('AudioHandler: PlayerException during loadPlaylist: ${e.message}');
-      if (mutableItems.length > 1 && safeIndex + 1 < mutableItems.length) {
-        debugPrint('AudioHandler: Attempting next track after error');
-        await _player.seek(Duration.zero, index: safeIndex + 1);
-        await _player.play();
-      }
-    } on PlayerInterruptedException catch (e) {
-      debugPrint('AudioHandler: PlayerInterruptedException: $e');
-    } catch (e) {
-      debugPrint('AudioHandler: Error during loadPlaylist: $e');
-    }
+    debugPrint('AudioHandler: loadPlaylist target ID: ${mutableItems[safeIndex].id} at index $safeIndex (total: ${mutableItems.length}, source: $source)');
 
-    // 2. Asynchronously background-resolve any other items in the queue that lack stream URLs
+    // Play the target item immediately
+    await _playItemAtIndex(safeIndex);
+
+    // Asynchronously pre-resolve any other items in queue
     _backgroundResolveQueue(mutableItems, safeIndex);
   }
 
+  /// Plays a single song and automatically populates the queue with suggested songs
+  Future<void> playSong(MediaItem item) async {
+    await loadPlaylist([item], initialIndex: 0, source: QueueSource.song);
+  }
+
+  /// Internal worker: plays the song at [index] in the current [queue].
+  Future<void> _playItemAtIndex(int index, {Duration initialPosition = Duration.zero}) async {
+    final currentQ = List<MediaItem>.from(queue.value);
+    if (index < 0 || index >= currentQ.length) return;
+
+    _currentIndex = index;
+    var targetItem = currentQ[index];
+
+    // Determine if the song is a YouTube track
+    var ytUrl = targetItem.extras?['youtube_url'] as String? ?? targetItem.extras?['url'] as String?;
+    final explicitYt = targetItem.extras?['is_youtube'] as bool?;
+    var isYt = _youtubeAudioService.isYouTubeTrack(
+      targetItem.id,
+      songUrl: ytUrl,
+      explicitIsYouTube: explicitYt,
+    );
+
+    Map<String, dynamic>? resolvedDetails;
+
+    // 1. Resolve direct audio URL or download qualities if missing
+    final hasAudioUrl = targetItem.extras?['audio_url'] != null &&
+        (targetItem.extras!['audio_url'] as String).isNotEmpty;
+    final hasDownloadUrls = targetItem.extras?['download_urls'] != null &&
+        (targetItem.extras!['download_urls'] as List).isNotEmpty;
+
+    if (!hasAudioUrl && !hasDownloadUrls) {
+      debugPrint('AudioHandler: Resolving stream URL for target item ${targetItem.id} (isYt: $isYt)...');
+
+      if (isYt) {
+        final videoId = _youtubeAudioService.extractVideoId(ytUrl ?? targetItem.id) ?? targetItem.id;
+        ytUrl ??= 'https://music.youtube.com/watch?v=$videoId';
+        final updatedExtras = Map<String, dynamic>.from(targetItem.extras ?? {});
+        updatedExtras['youtube_url'] = ytUrl;
+        updatedExtras['is_youtube'] = true;
+
+        if (!kIsWeb) {
+          debugPrint('AudioHandler: Resolving via YouTubeAudioService for ${targetItem.id}...');
+          final ytResult = await _youtubeAudioService.resolveStream(targetItem.id, songUrl: ytUrl);
+          if (ytResult != null && ytResult.bestAudioUrl.isNotEmpty) {
+            updatedExtras['audio_url'] = ytResult.bestAudioUrl;
+            if (ytResult.downloadUrls.isNotEmpty) {
+              updatedExtras['download_urls'] = ytResult.downloadUrls.map((e) => e.toJson()).toList();
+            }
+          }
+        }
+        targetItem = targetItem.copyWith(extras: updatedExtras);
+        currentQ[index] = targetItem;
+        queue.add(currentQ);
+      } else {
+        // Query backend song details
+        var details = await _fetchSongDetails(targetItem.id);
+
+        // Fallback: search backend if details not found (e.g. legacy Saavn ID like P5pjB99X)
+        if (details == null) {
+          debugPrint('AudioHandler: Song details not found for ${targetItem.id}, trying search fallback for "${targetItem.title}"...');
+          details = await _searchSongFallback(targetItem.title, targetItem.artist);
+        }
+
+        if (details != null) {
+          resolvedDetails = details;
+          final updatedExtras = Map<String, dynamic>.from(targetItem.extras ?? {});
+          final rawUrls = details['downloadUrl'] ?? details['download_url'] ?? details['download_urls'];
+          final qualities = AdaptiveAudioQualitySelector.parseDownloadUrls(rawUrls);
+          final detailYtUrl = details['url'] ?? details['youtube_url'];
+          final detailId = details['id']?.toString() ?? targetItem.id;
+
+          if (qualities.isNotEmpty) {
+            updatedExtras['download_urls'] = qualities.map((e) => e.toJson()).toList();
+            updatedExtras['audio_url'] = qualities.last.url;
+          } else if (details['audio_url'] != null) {
+            updatedExtras['audio_url'] = details['audio_url'].toString();
+          }
+
+          if (detailYtUrl != null || _youtubeAudioService.isYouTubeTrack(detailId, songUrl: detailYtUrl?.toString())) {
+            isYt = true;
+            ytUrl = detailYtUrl?.toString() ?? 'https://music.youtube.com/watch?v=$detailId';
+            updatedExtras['youtube_url'] = ytUrl;
+            updatedExtras['is_youtube'] = true;
+            if (!kIsWeb && updatedExtras['audio_url'] == null) {
+              final ytResult = await _youtubeAudioService.resolveStream(detailId, songUrl: ytUrl);
+              if (ytResult != null && ytResult.bestAudioUrl.isNotEmpty) {
+                updatedExtras['audio_url'] = ytResult.bestAudioUrl;
+                if (ytResult.downloadUrls.isNotEmpty) {
+                  updatedExtras['download_urls'] = ytResult.downloadUrls.map((e) => e.toJson()).toList();
+                }
+              }
+            }
+          }
+
+          targetItem = targetItem.copyWith(
+            id: detailId,
+            extras: updatedExtras,
+          );
+          currentQ[index] = targetItem;
+          queue.add(currentQ);
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 💡 SUGGESTED SONGS: If user is playing a standalone song (not from album, artist, or playlist),
+    // automatically populate upcoming queue with suggested_songs from API response!
+    // ─────────────────────────────────────────────────────────────────────────
+    if (_queueSource == QueueSource.song) {
+      if (resolvedDetails != null && resolvedDetails['suggested_songs'] is List) {
+        _populateSuggestedSongsIfApplicable(targetItem.id, resolvedDetails);
+      } else {
+        _loadAndAppendSuggestedSongs(targetItem.id);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 🌐 WEB YOUTUBE FAST PATH: Play via official YouTube IFrame Player on Web
+    // ─────────────────────────────────────────────────────────────────────────
+    if (kIsWeb && isYt) {
+      final videoId = _youtubeAudioService.extractVideoId(ytUrl ?? targetItem.id) ?? targetItem.id;
+      debugPrint('AudioHandler: [Web] Playing YouTube track $videoId via WebYouTubePlayer...');
+
+      // Stop just_audio player if it was playing
+      await _player.stop();
+      _isUsingWebPlayer = true;
+
+      // Broadcast active mediaItem
+      mediaItem.add(targetItem);
+
+      try {
+        await _webPlayer.play(videoId, initialPosition: initialPosition);
+        _broadcastWebPlayerState();
+        _consecutiveErrors = 0;
+        _recordRecentPlay(targetItem.id);
+        debugPrint('AudioHandler: [Web] Successfully started YouTube playback for ${targetItem.title}');
+        return;
+      } catch (e) {
+        debugPrint('AudioHandler: [Web] WebYouTubePlayer error: $e');
+        _isUsingWebPlayer = false;
+        // Fall through to regular playback attempt below
+      }
+    } else if (_isUsingWebPlayer) {
+      await _webPlayer.stop();
+      _isUsingWebPlayer = false;
+    }
+
+    // 2. Broadcast active mediaItem
+    mediaItem.add(targetItem);
+
+    // 3. Create audio source and start playback
+    final headers = _getAuthHeaders();
+    final source = _createAudioSource(targetItem, headers);
+
+    try {
+      await _player.setAudioSource(source, initialPosition: initialPosition);
+      await _player.play();
+      _broadcastState();
+      _consecutiveErrors = 0;
+      _recordRecentPlay(targetItem.id);
+      debugPrint('AudioHandler: Playback successfully started for index $index: ${targetItem.title}');
+    } on PlayerException catch (e) {
+      debugPrint('AudioHandler: PlayerException playing index $index: ${e.message}');
+      _consecutiveErrors++;
+      if (_consecutiveErrors < 3 && index + 1 < currentQ.length) {
+        debugPrint('AudioHandler: Attempting next track after player error (consecutive errors: $_consecutiveErrors)...');
+        await skipToNext();
+      } else {
+        debugPrint('AudioHandler: Halting auto-skip (consecutive errors: $_consecutiveErrors).');
+        _consecutiveErrors = 0;
+      }
+    } catch (e) {
+      debugPrint('AudioHandler: Error playing item at index $index: $e');
+      _consecutiveErrors++;
+      if (_consecutiveErrors < 3 && index + 1 < currentQ.length) {
+        debugPrint('AudioHandler: Attempting next track after error (consecutive errors: $_consecutiveErrors)...');
+        await skipToNext();
+      } else {
+        debugPrint('AudioHandler: Halting auto-skip (consecutive errors: $_consecutiveErrors).');
+        _consecutiveErrors = 0;
+      }
+    }
+  }
+
+  Future<void> _loadAndAppendSuggestedSongs(String songId) async {
+    try {
+      final details = await _fetchSongDetails(songId);
+      if (details != null && _queueSource == QueueSource.song) {
+        _populateSuggestedSongsIfApplicable(songId, details);
+      }
+    } catch (e) {
+      debugPrint('AudioHandler: Error loading suggested songs for $songId: $e');
+    }
+  }
+
+  void _populateSuggestedSongsIfApplicable(String songId, Map<String, dynamic> details) {
+    if (_queueSource != QueueSource.song) {
+      debugPrint('AudioHandler: Queue source is $_queueSource (album/playlist/artist), keeping existing collection.');
+      return;
+    }
+
+    final rawSuggestions = details['suggested_songs'];
+    if (rawSuggestions is! List || rawSuggestions.isEmpty) return;
+
+    final currentQ = List<MediaItem>.from(queue.value);
+    if (_currentIndex < 0 || _currentIndex >= currentQ.length) return;
+
+    // Keep played tracks history and current track
+    final playedItems = currentQ.sublist(0, _currentIndex + 1);
+    final playedIds = playedItems.map((e) => e.id).toSet();
+    final newSuggestedItems = <MediaItem>[];
+
+    for (final raw in rawSuggestions) {
+      if (raw is Map<String, dynamic>) {
+        final id = raw['id']?.toString() ?? '';
+        if (id.isNotEmpty && !playedIds.contains(id)) {
+          final homeItem = HomeItem.fromJson(raw);
+          newSuggestedItems.add(homeItemToMediaItem(homeItem));
+          playedIds.add(id);
+        }
+      }
+    }
+
+    if (newSuggestedItems.isNotEmpty) {
+      // Keep queue up to current index, and populate remainder with suggested songs
+      final updatedQueue = [
+        ...currentQ.sublist(0, _currentIndex + 1),
+        ...newSuggestedItems,
+      ];
+      queue.add(updatedQueue);
+      debugPrint('AudioHandler: Populated queue with ${newSuggestedItems.length} suggested songs based on $songId');
+
+      // Pre-resolve the immediate upcoming 2 tracks in background
+      _backgroundResolveQueue(updatedQueue, _currentIndex);
+    }
+  }
+
   void _backgroundResolveQueue(List<MediaItem> items, int skipIndex) async {
-    bool hasUpdates = false;
-    for (int i = 0; i < items.length; i++) {
-      if (i == skipIndex) continue;
+    // Only pre-resolve the immediate upcoming 2 tracks to save mobile bandwidth & avoid slowdowns
+    final maxLookahead = math.min(items.length, skipIndex + 3);
+    for (int i = skipIndex + 1; i < maxLookahead; i++) {
       final it = items[i];
       final hasAudio = it.extras?['audio_url'] != null && (it.extras!['audio_url'] as String).isNotEmpty;
       final hasQualities = it.extras?['download_urls'] != null && (it.extras!['download_urls'] as List).isNotEmpty;
       if (!hasAudio && !hasQualities) {
+        final ytUrl = it.extras?['youtube_url'] as String? ?? it.extras?['url'] as String?;
+        final explicitYt = it.extras?['is_youtube'] as bool?;
+        final isYt = _youtubeAudioService.isYouTubeTrack(
+          it.id,
+          songUrl: ytUrl,
+          explicitIsYouTube: explicitYt,
+        );
+
+        if (isYt) {
+          final ytResult = await _youtubeAudioService.resolveStream(it.id, songUrl: ytUrl);
+          if (ytResult != null && ytResult.bestAudioUrl.isNotEmpty) {
+            final updatedExtras = Map<String, dynamic>.from(it.extras ?? {});
+            updatedExtras['audio_url'] = ytResult.bestAudioUrl;
+            if (ytResult.downloadUrls.isNotEmpty) {
+              updatedExtras['download_urls'] = ytResult.downloadUrls.map((e) => e.toJson()).toList();
+            }
+            final currentQ = List<MediaItem>.from(queue.value);
+            if (i < currentQ.length && currentQ[i].id == it.id) {
+              currentQ[i] = it.copyWith(extras: updatedExtras);
+              queue.add(currentQ);
+            }
+            continue;
+          }
+        }
+
         final details = await _fetchSongDetails(it.id);
         if (details != null) {
           final rawUrls = details['downloadUrl'] ?? details['download_url'] ?? details['download_urls'];
@@ -217,58 +588,14 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
             updatedExtras['download_urls'] = qualities.map((e) => e.toJson()).toList();
             updatedExtras['audio_url'] = qualities.last.url;
           } else if (details['audio_url'] != null) {
-            updatedExtras['audio_url'] = details['audio_url'];
+            updatedExtras['audio_url'] = details['audio_url'].toString();
           }
-          items[i] = it.copyWith(extras: updatedExtras);
-          hasUpdates = true;
+          final currentQ = List<MediaItem>.from(queue.value);
+          if (i < currentQ.length && currentQ[i].id == it.id) {
+            currentQ[i] = it.copyWith(extras: updatedExtras);
+            queue.add(currentQ);
+          }
         }
-      }
-    }
-
-    if (hasUpdates && queue.value.length == items.length) {
-      queue.add(items);
-      final headers = _getAuthHeaders();
-      final audioSources = items.map((item) => _createAudioSource(item, headers)).toList();
-      try {
-        final curIdx = _player.currentIndex;
-        final curPos = _player.position;
-        final isPlaying = _player.playing;
-        await _player.setAudioSources(audioSources, initialIndex: curIdx, initialPosition: curPos);
-        if (isPlaying) {
-          await _player.play();
-        }
-      } catch (e) {
-        debugPrint('AudioHandler: Note: error applying background resolved queue: $e');
-      }
-    }
-  }
-
-  Future<void> _ensureItemResolved(int index) async {
-    final currentQ = queue.value;
-    if (index < 0 || index >= currentQ.length) return;
-    final it = currentQ[index];
-    final hasAudio = it.extras?['audio_url'] != null && (it.extras!['audio_url'] as String).isNotEmpty;
-    final hasQualities = it.extras?['download_urls'] != null && (it.extras!['download_urls'] as List).isNotEmpty;
-    if (!hasAudio && !hasQualities) {
-      final details = await _fetchSongDetails(it.id);
-      if (details != null) {
-        final rawUrls = details['downloadUrl'] ?? details['download_url'] ?? details['download_urls'];
-        final qualities = AdaptiveAudioQualitySelector.parseDownloadUrls(rawUrls);
-        final updatedExtras = Map<String, dynamic>.from(it.extras ?? {});
-        if (qualities.isNotEmpty) {
-          updatedExtras['download_urls'] = qualities.map((e) => e.toJson()).toList();
-          updatedExtras['audio_url'] = qualities.last.url;
-        } else if (details['audio_url'] != null) {
-          updatedExtras['audio_url'] = details['audio_url'];
-        }
-        final updatedItem = it.copyWith(extras: updatedExtras);
-        final newQ = List<MediaItem>.from(currentQ);
-        newQ[index] = updatedItem;
-        queue.add(newQ);
-
-        final headers = _getAuthHeaders();
-        final newSources = newQ.map((item) => _createAudioSource(item, headers)).toList();
-        await _player.setAudioSources(newSources, initialIndex: _player.currentIndex);
       }
     }
   }
@@ -278,19 +605,6 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
     final currentQueue = queue.value;
     final newQueue = [...currentQueue, ...items];
     queue.add(newQueue);
-
-    final headers = _getAuthHeaders();
-    final newSources = items.map((item) => _createAudioSource(item, headers)).toList();
-    final sequence = _player.sequence;
-
-    try {
-      await _player.setAudioSources(
-        [...sequence, ...newSources],
-        initialIndex: _player.currentIndex,
-      );
-    } catch (e) {
-      debugPrint('AudioHandler: Error adding items to queue: $e');
-    }
   }
 
   AudioSource _createAudioSource(MediaItem item, Map<String, String> headers) {
@@ -298,32 +612,34 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
 
     // 1. Adaptive Network Speed Quality Resolution
     final rawDownloadUrls = item.extras?['download_urls'];
-    final qualities = AdaptiveAudioQualitySelector.parseDownloadUrls(rawDownloadUrls);
+    if (rawDownloadUrls != null) {
+      final qualities = AdaptiveAudioQualitySelector.parseDownloadUrls(rawDownloadUrls);
+      if (qualities.isNotEmpty) {
+        final prefCode = _storage.audioQualityPreference;
+        final pref = AudioQualityPreference.fromCode(prefCode);
+        final grade = _networkSpeedService.currentGrade;
 
-    if (qualities.isNotEmpty) {
-      final prefCode = _storage.audioQualityPreference;
-      final pref = AudioQualityPreference.fromCode(prefCode);
-      final grade = _networkSpeedService.currentGrade;
-
-      final selectedQuality = AdaptiveAudioQualitySelector.resolveQuality(
-        availableQualities: qualities,
-        preference: pref,
-        currentGrade: grade,
-      );
-
-      if (selectedQuality != null && selectedQuality.url.isNotEmpty) {
-        url = selectedQuality.url;
-        debugPrint(
-          'AudioHandler: [Adaptive Quality] Selected ${selectedQuality.displayLabel} for ${item.title} '
-          '(Pref: ${pref.code}, Network: ${grade.label}, Speed: ${_networkSpeedService.currentSpeedKbps.toStringAsFixed(0)} kbps)',
+        final selectedQuality = AdaptiveAudioQualitySelector.resolveQuality(
+          availableQualities: qualities,
+          preference: pref,
+          currentGrade: grade,
         );
+
+        if (selectedQuality != null && selectedQuality.url.isNotEmpty) {
+          url = selectedQuality.url;
+          debugPrint(
+            'AudioHandler: [Adaptive Quality] Selected ${selectedQuality.displayLabel} for ${item.title} '
+            '(Pref: ${pref.code}, Network: ${grade.label})',
+          );
+        }
       }
     }
 
     url ??= item.extras?['audio_url'] as String?;
 
     if (url == null || url.isEmpty) {
-      url = '$_baseStreamUrl/music/${item.id}/stream/';
+      debugPrint('AudioHandler: No valid streaming URL available for ${item.id} (${item.title})');
+      throw StateError('AudioHandler: No playable audio stream available for "${item.title}"');
     }
 
     // Handle relative URLs
@@ -333,14 +649,26 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
       url = url.startsWith('/') ? '$origin$url' : '$origin/$url';
     }
 
+    // Upgrade known CDN URLs to secure HTTPS
+    if (url.startsWith('http://aac.saavncdn.com')) {
+      url = url.replaceFirst('http://', 'https://');
+    }
+
     debugPrint('AudioHandler: Resolved URL for ${item.id}: $url');
 
-    final useHeaders = url.contains(Uri.parse(_baseStreamUrl).host) ? headers : null;
+    // CRITICAL for Web: Browsers HTMLAudioElement does not support custom request headers.
+    // Supplying headers on Web triggers UnsupportedError or CORS preflight blocks.
+    final useHeaders = kIsWeb
+        ? null
+        : (url.contains(Uri.parse(_baseStreamUrl).host) ? headers : null);
+
+    // On Web, strip artUri from AudioSource tag to prevent just_audio_web XMLHttpRequest 429 errors
+    final useTag = kIsWeb ? item.copyWith(artUri: null) : item;
 
     return AudioSource.uri(
       Uri.parse(url),
       headers: useHeaders,
-      tag: item,
+      tag: useTag,
     );
   }
 
@@ -362,10 +690,16 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
     final updatedItem = currentItem.copyWith(extras: updatedExtras);
     mediaItem.add(updatedItem);
 
+    final useHeaders = kIsWeb
+        ? null
+        : (targetQuality.url.contains(Uri.parse(_baseStreamUrl).host) ? headers : null);
+
+    final useTag = kIsWeb ? updatedItem.copyWith(artUri: null) : updatedItem;
+
     final newSource = AudioSource.uri(
       Uri.parse(targetQuality.url),
-      headers: targetQuality.url.contains(Uri.parse(_baseStreamUrl).host) ? headers : null,
-      tag: updatedItem,
+      headers: useHeaders,
+      tag: useTag,
     );
 
     try {
@@ -381,51 +715,136 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
   // ── Playback controls ──
 
   @override
-  Future<void> play() {
-    final future = _player.play();
-    _broadcastState();
-    return future;
+  Future<void> play() async {
+    if (_isUsingWebPlayer) {
+      await _webPlayer.resume();
+      _broadcastWebPlayerState();
+    } else {
+      await _player.play();
+      _broadcastState();
+    }
   }
 
   @override
-  Future<void> pause() {
-    final future = _player.pause();
-    _broadcastState();
-    return future;
+  Future<void> pause() async {
+    if (_isUsingWebPlayer) {
+      await _webPlayer.pause();
+      _broadcastWebPlayerState();
+    } else {
+      await _player.pause();
+      _broadcastState();
+    }
   }
 
   void _broadcastState() {
-    playbackState.add(_transformEvent(_player.playbackEvent));
+    if (_isUsingWebPlayer) {
+      _broadcastWebPlayerState();
+    } else {
+      playbackState.add(_transformEvent(_player.playbackEvent));
+    }
+  }
+
+  void _broadcastWebPlayerState() {
+    playbackState.add(
+      PlaybackState(
+        controls: [
+          MediaControl.skipToPrevious,
+          if (_webPlayer.isPlaying) MediaControl.pause else MediaControl.play,
+          MediaControl.skipToNext,
+          MediaControl.stop,
+        ],
+        systemActions: const {
+          MediaAction.seek,
+          MediaAction.seekForward,
+          MediaAction.seekBackward,
+          MediaAction.setRepeatMode,
+          MediaAction.setShuffleMode,
+        },
+        androidCompactActionIndices: const [0, 1, 2],
+        processingState: AudioProcessingState.ready,
+        playing: _webPlayer.isPlaying,
+        updatePosition: _webPlayer.currentPosition,
+        bufferedPosition: _webPlayer.currentPosition,
+        speed: 1.0,
+        queueIndex: _currentIndex,
+      ),
+    );
   }
 
   @override
-  Future<void> seek(Duration position) => _player.seek(position);
+  Future<void> seek(Duration position) async {
+    if (_isUsingWebPlayer) {
+      await _webPlayer.seek(position);
+      _broadcastWebPlayerState();
+    } else {
+      await _player.seek(position);
+    }
+  }
 
   @override
   Future<void> skipToQueueItem(int index) async {
-    if (index < 0 || index >= queue.value.length) return;
-    await _ensureItemResolved(index);
-    await _player.seek(Duration.zero, index: index);
-    await _player.play();
+    final currentQ = queue.value;
+    if (index < 0 || index >= currentQ.length) return;
+    await _playItemAtIndex(index);
   }
 
   @override
   Future<void> skipToNext() async {
-    if (_player.hasNext) {
-      final nextIdx = (_player.currentIndex ?? 0) + 1;
-      await _ensureItemResolved(nextIdx);
-      await _player.seekToNext();
-      await _player.play();
+    final currentQ = queue.value;
+    if (currentQ.isEmpty) return;
+
+    // Handle shuffle mode
+    if (_player.shuffleModeEnabled && currentQ.length > 1) {
+      final rand = math.Random();
+      int nextIdx;
+      do {
+        nextIdx = rand.nextInt(currentQ.length);
+      } while (nextIdx == _currentIndex && currentQ.length > 1);
+      await _playItemAtIndex(nextIdx);
+      return;
+    }
+
+    final nextIdx = _currentIndex + 1;
+    if (nextIdx < currentQ.length) {
+      await _playItemAtIndex(nextIdx);
+    } else if (_queueSource == QueueSource.song && currentQ.isNotEmpty) {
+      // Reached the end of suggestions queue; fetch more suggestions from the last played song
+      debugPrint('AudioHandler: Reached end of suggestions, fetching more suggestions...');
+      final lastId = currentQ.last.id;
+      final details = await _fetchSongDetails(lastId);
+      if (details != null && details['suggested_songs'] is List) {
+        _populateSuggestedSongsIfApplicable(lastId, details);
+        final updatedQ = queue.value;
+        if (_currentIndex + 1 < updatedQ.length) {
+          await _playItemAtIndex(_currentIndex + 1);
+          return;
+        }
+      }
+      if (_player.loopMode == LoopMode.all) {
+        await _playItemAtIndex(0);
+      }
+    } else if (_player.loopMode == LoopMode.all) {
+      await _playItemAtIndex(0);
     }
   }
 
   @override
   Future<void> skipToPrevious() async {
-    if (_player.hasPrevious) {
-      final prevIdx = (_player.currentIndex ?? 0) - 1;
-      await _ensureItemResolved(prevIdx);
-      await _player.seekToPrevious();
-      await _player.play();
+    if (_player.position.inSeconds > 3) {
+      await _player.seek(Duration.zero);
+      return;
+    }
+
+    final currentQ = queue.value;
+    if (currentQ.isEmpty) return;
+
+    final prevIdx = _currentIndex - 1;
+    if (prevIdx >= 0) {
+      await _playItemAtIndex(prevIdx);
+    } else if (_player.loopMode == LoopMode.all) {
+      await _playItemAtIndex(currentQ.length - 1);
+    } else {
+      await _player.seek(Duration.zero);
     }
   }
 
@@ -503,9 +922,8 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
 
     queue.add(updatedQueue);
 
-    final currentIndex = _player.currentIndex;
-    if (currentIndex != null && currentIndex < updatedQueue.length) {
-      mediaItem.add(updatedQueue[currentIndex]);
+    if (_currentIndex < updatedQueue.length) {
+      mediaItem.add(updatedQueue[_currentIndex]);
     }
   }
 
@@ -517,13 +935,13 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
       final item = currentQueue[index];
       final extras = Map<String, dynamic>.from(item.extras ?? {});
       extras['is_favorited'] = isFavorite;
-      
+
       final newItem = item.copyWith(extras: extras);
       final newQueue = List<MediaItem>.from(currentQueue);
       newQueue[index] = newItem;
-      
+
       queue.add(newQueue);
-      
+
       if (mediaItem.value?.id == id) {
         mediaItem.add(newItem);
       }
@@ -534,12 +952,18 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
 
   @override
   Future<void> stop() async {
+    if (_isUsingWebPlayer) {
+      await _webPlayer.stop();
+      _isUsingWebPlayer = false;
+    }
     await _player.stop();
     return super.stop();
   }
 
   /// Dispose the underlying player. Call when the app is shutting down.
   Future<void> dispose() async {
+    _webPlayer.dispose();
+    await _positionDataSubject.close();
     await _player.dispose();
   }
 
@@ -586,27 +1010,17 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
         ProcessingState.buffering: AudioProcessingState.buffering,
         ProcessingState.ready: AudioProcessingState.ready,
         ProcessingState.completed: AudioProcessingState.completed,
-      }[_player.processingState]!,
+      }[_player.processingState] ?? AudioProcessingState.idle,
       playing: _player.playing,
       updatePosition: _player.position,
       bufferedPosition: _player.bufferedPosition,
       speed: _player.speed,
-      queueIndex: event.currentIndex,
+      queueIndex: _currentIndex,
     );
   }
 
   /// Combined stream of position, buffered position, and duration.
-  Stream<PositionData> get positionDataStream =>
-      Rx.combineLatest3<Duration, Duration, Duration?, PositionData>(
-        _player.positionStream,
-        _player.bufferedPositionStream,
-        _player.durationStream,
-        (position, bufferedPosition, duration) => PositionData(
-          position,
-          bufferedPosition,
-          duration ?? Duration.zero,
-        ),
-      );
+  Stream<PositionData> get positionDataStream => _positionDataSubject.stream;
 }
 
 /// Helper class to bundle position data.

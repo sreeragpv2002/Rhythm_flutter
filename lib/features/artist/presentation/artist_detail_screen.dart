@@ -7,6 +7,7 @@ import 'package:rhythm_flutter/core/animations/app_animations.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
 import 'package:rhythm_flutter/core/theme/spacing.dart';
+import 'package:rhythm_flutter/core/theme/scroll_physics.dart';
 import 'package:rhythm_flutter/core/widgets/shimmer_loading.dart';
 import 'package:rhythm_flutter/features/artist/data/models/artist_detail.dart';
 import 'package:rhythm_flutter/features/artist/providers/artist_provider.dart';
@@ -68,7 +69,7 @@ class _MobileArtistView extends ConsumerWidget {
     final handler = ref.read(audioHandlerProvider);
 
     return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
+      physics: AppScrollPhysics.adaptive,
       slivers: [
         // ── Sliver App Bar with Glowing Hero Header ──
         SliverAppBar(
@@ -285,7 +286,11 @@ class _MobileArtistView extends ConsumerWidget {
                     isDark: isDark,
                     onTap: () {
                       final mediaItems = artist.toMediaItems(locale);
-                      handler.loadPlaylist(mediaItems, initialIndex: index);
+                      handler.loadPlaylist(
+                        mediaItems,
+                        initialIndex: index,
+                        source: QueueSource.artist,
+                      );
                     },
                     onFavoriteToggle: () async {
                       await ref
@@ -421,7 +426,7 @@ class _DesktopArtistView extends ConsumerWidget {
                 SizedBox(
                   width: 380,
                   child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
+                    physics: AppScrollPhysics.adaptive,
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -504,7 +509,7 @@ class _DesktopArtistView extends ConsumerWidget {
                 // Right Column: Top Tracks & Albums
                 Expanded(
                   child: ListView.builder(
-                    physics: const BouncingScrollPhysics(),
+                    physics: AppScrollPhysics.adaptive,
                     padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
                     itemCount: artist.topSongs.length + 3,
                     itemBuilder: (context, index) {
@@ -542,7 +547,11 @@ class _DesktopArtistView extends ConsumerWidget {
                           isDark: isDark,
                           onTap: () {
                             final mediaItems = artist.toMediaItems(locale);
-                            handler.loadPlaylist(mediaItems, initialIndex: songIndex);
+                            handler.loadPlaylist(
+                              mediaItems,
+                              initialIndex: songIndex,
+                              source: QueueSource.artist,
+                            );
                           },
                           onFavoriteToggle: () async {
                             await ref
@@ -772,7 +781,11 @@ class _ArtistActionButtons extends ConsumerWidget {
             onTap: () {
               if (artist.topSongs.isNotEmpty) {
                 final mediaItems = artist.toMediaItems(locale);
-                handler.loadPlaylist(mediaItems, initialIndex: 0);
+                handler.loadPlaylist(
+                  mediaItems,
+                  initialIndex: 0,
+                  source: QueueSource.artist,
+                );
               }
             },
             child: Container(
@@ -817,7 +830,11 @@ class _ArtistActionButtons extends ConsumerWidget {
               if (artist.topSongs.isNotEmpty) {
                 final mediaItems =
                     List.of(artist.toMediaItems(locale))..shuffle();
-                handler.loadPlaylist(mediaItems, initialIndex: 0);
+                handler.loadPlaylist(
+                  mediaItems,
+                  initialIndex: 0,
+                  source: QueueSource.artist,
+                );
               }
             },
             child: Container(
@@ -1120,7 +1137,7 @@ class _ArtistAlbumsSection extends StatelessWidget {
             height: 205,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
+              physics: AppScrollPhysics.adaptive,
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               itemCount: albums.length,
               separatorBuilder: (_, __) => const SizedBox(width: 14),
@@ -1362,7 +1379,7 @@ class _SimilarArtistsSection extends StatelessWidget {
             height: 90,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
+              physics: AppScrollPhysics.adaptive,
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               itemCount: similarArtists.length,
               separatorBuilder: (_, __) => const SizedBox(width: 14),

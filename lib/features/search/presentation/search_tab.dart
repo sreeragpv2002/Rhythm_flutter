@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
 import 'package:rhythm_flutter/core/theme/spacing.dart';
+import 'package:rhythm_flutter/core/theme/scroll_physics.dart';
 import 'package:rhythm_flutter/core/widgets/music_list_tile.dart';
 import 'package:rhythm_flutter/core/widgets/shimmer_loading.dart';
 import 'package:rhythm_flutter/features/home/data/models/home_feed.dart';
@@ -182,7 +183,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
               ),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
+                physics: AppScrollPhysics.adaptive,
                 child: Row(
                   children: SearchCategoryFilter.values.map((filter) {
                     final isSelected = activeFilter == filter;
@@ -367,7 +368,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
     final handler = ref.read(audioHandlerProvider);
 
     return ListView(
-      physics: const BouncingScrollPhysics(),
+      physics: AppScrollPhysics.adaptive,
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         AppSpacing.sm,
@@ -433,13 +434,10 @@ class _SearchTabState extends ConsumerState<SearchTab> {
                 );
               },
               onTap: () {
-                final songItems = searchData.songs;
-                final songIndex = songItems.indexOf(song);
-                final mediaItems =
-                    songItems.map((s) => homeItemToMediaItem(s)).toList();
                 handler.loadPlaylist(
-                  mediaItems,
-                  initialIndex: songIndex >= 0 ? songIndex : 0,
+                  [homeItemToMediaItem(song)],
+                  initialIndex: 0,
+                  source: QueueSource.song,
                 );
               },
             );
@@ -458,7 +456,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
             height: 215,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
+              physics: AppScrollPhysics.adaptive,
               itemCount: searchData.albums.length,
               itemBuilder: (context, index) {
                 final album = searchData.albums[index];
@@ -488,7 +486,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
             height: 195,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
+              physics: AppScrollPhysics.adaptive,
               itemCount: searchData.artists.length,
               itemBuilder: (context, index) {
                 final artist = searchData.artists[index];
@@ -518,7 +516,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
             height: 215,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
+              physics: AppScrollPhysics.adaptive,
               itemCount: searchData.playlists.length,
               itemBuilder: (context, index) {
                 final playlist = searchData.playlists[index];
@@ -552,7 +550,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
     final handler = ref.read(audioHandlerProvider);
 
     return ListView.builder(
-      physics: const BouncingScrollPhysics(),
+      physics: AppScrollPhysics.adaptive,
       padding: EdgeInsets.fromLTRB(
         AppSpacing.sm,
         AppSpacing.xs,
@@ -597,11 +595,10 @@ class _SearchTabState extends ConsumerState<SearchTab> {
             );
           },
           onTap: () {
-            final mediaItems =
-                songs.map((s) => homeItemToMediaItem(s)).toList();
             handler.loadPlaylist(
-              mediaItems,
-              initialIndex: index,
+              [homeItemToMediaItem(song)],
+              initialIndex: 0,
+              source: QueueSource.song,
             );
           },
         );
@@ -621,7 +618,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
     }
 
     return GridView.builder(
-      physics: const BouncingScrollPhysics(),
+      physics: AppScrollPhysics.adaptive,
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         AppSpacing.sm,
@@ -657,7 +654,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
     }
 
     return GridView.builder(
-      physics: const BouncingScrollPhysics(),
+      physics: AppScrollPhysics.adaptive,
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         AppSpacing.sm,
@@ -693,7 +690,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
     }
 
     return GridView.builder(
-      physics: const BouncingScrollPhysics(),
+      physics: AppScrollPhysics.adaptive,
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         AppSpacing.sm,
@@ -782,12 +779,10 @@ class _SearchTabState extends ConsumerState<SearchTab> {
   void _handleItemTap(HomeItem item, SearchResult searchData) {
     if (item.isSong) {
       final handler = ref.read(audioHandlerProvider);
-      final songItems = searchData.songs.isNotEmpty ? searchData.songs : [item];
-      final songIndex = songItems.indexOf(item);
-      final mediaItems = songItems.map((s) => homeItemToMediaItem(s)).toList();
       handler.loadPlaylist(
-        mediaItems,
-        initialIndex: songIndex >= 0 ? songIndex : 0,
+        [homeItemToMediaItem(item)],
+        initialIndex: 0,
+        source: QueueSource.song,
       );
     } else if (item.isAlbum) {
       context.push('/album/${item.id}');
@@ -848,7 +843,7 @@ class _SearchTabState extends ConsumerState<SearchTab> {
   /// Browse categories shown when search field is empty
   Widget _buildBrowseCategories(bool isDark, bool isDesktop) {
     return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
+      physics: AppScrollPhysics.adaptive,
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         AppSpacing.sm,

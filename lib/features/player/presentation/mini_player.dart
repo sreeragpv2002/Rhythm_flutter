@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:rhythm_flutter/core/services/audio_handler.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
 import 'package:rhythm_flutter/core/theme/spacing.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
@@ -35,7 +34,6 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
   Widget build(BuildContext context) {
     final mediaItemAsync = ref.watch(currentMediaItemProvider);
     final playbackAsync = ref.watch(playbackStateProvider);
-    final positionAsync = ref.watch(positionDataProvider);
     final qualityLabel = ref.watch(currentActiveQualityLabelProvider);
     final handler = ref.read(audioHandlerProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -47,12 +45,6 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
     final processingState = playbackAsync.valueOrNull?.processingState ?? AudioProcessingState.idle;
     final bool isLoading = processingState == AudioProcessingState.loading ||
         processingState == AudioProcessingState.buffering;
-
-    // Progress calculation
-    final posData = positionAsync.valueOrNull;
-    final progress = (posData != null && posData.duration.inMilliseconds > 0)
-        ? (posData.position.inMilliseconds / posData.duration.inMilliseconds).clamp(0.0, 1.0)
-        : 0.0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -108,25 +100,12 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                 ),
                 child: Stack(
                   children: [
-                    // ── Thin top gradient progress line ──
+                    // ── Thin top gradient progress line (isolated reactive widget) ──
                     Positioned(
                       top: 0,
                       left: 0,
                       right: 0,
-                      child: Container(
-                        height: 2.0,
-                        alignment: Alignment.centerLeft,
-                        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.06),
-                        child: FractionallySizedBox(
-                          widthFactor: progress,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: AppColors.primaryGradient,
-                              borderRadius: BorderRadius.circular(1),
-                            ),
-                          ),
-                        ),
-                      ),
+                      child: _MiniPlayerProgressBar(isDark: isDark),
                     ),
 
                     // ── Content Row ──
@@ -183,6 +162,24 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                                         ),
                                       ),
                                     ),
+                                    if (ref.watch(isCurrentSongYouTubeProvider)) ...[
+                                      const SizedBox(width: 4),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 0.5),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFF0000).withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(3),
+                                        ),
+                                        child: const Text(
+                                          'YT',
+                                          style: TextStyle(
+                                            color: Color(0xFFFF4B6E),
+                                            fontSize: 8.5,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                     if (qualityLabel.isNotEmpty && !isLoading) ...[
                                       const SizedBox(width: 4),
                                       Container(
@@ -548,3 +545,37 @@ class _PlayPauseButton extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 📏 ISOLATED MINI PLAYER PROGRESS BAR
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _MiniPlayerProgressBar extends ConsumerWidget {
+  final bool isDark;
+  const _MiniPlayerProgressBar({required this.isDark});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final positionAsync = ref.watch(positionDataProvider);
+    final posData = positionAsync.valueOrNull;
+    final progress = (posData != null && posData.duration.inMilliseconds > 0)
+        ? (posData.position.inMilliseconds / posData.duration.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Container(
+      height: 2.0,
+      alignment: Alignment.centerLeft,
+      color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.06),
+      child: FractionallySizedBox(
+        widthFactor: progress,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient,
+            borderRadius: BorderRadius.circular(1),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

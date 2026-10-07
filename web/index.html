@@ -31,6 +31,147 @@
 
   <title>rhythm_flutter</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Native Splash Web stub to prevent PlatformException -->
+  <script>
+    function removeSplashFromWeb() {
+      // Stub to safely handle flutter_native_splash on Web
+    }
+  </script>
+
+  <!-- YouTube IFrame API for Web Audio/Video Playback -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <div id="rhythm-youtube-player-container" style="position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; pointer-events: none; opacity: 0; z-index: -1;"></div>
+
+  <script>
+    window.rhythmYT = {
+      player: null,
+      isReady: false,
+      currentVideoId: null,
+      state: -1,
+      onStateChangeCallback: null,
+      onErrorCallback: null,
+      pendingVideoId: null,
+      pendingStartSeconds: 0,
+
+      init: function() {
+        if (window.rhythmYT.player) return;
+        if (window.YT && window.YT.Player) {
+          window.rhythmYT.createPlayer();
+        } else {
+          window.onYouTubeIframeAPIReady = function() {
+            window.rhythmYT.createPlayer();
+          };
+        }
+      },
+
+      createPlayer: function() {
+        try {
+          window.rhythmYT.player = new YT.Player('rhythm-youtube-player-container', {
+            height: '1',
+            width: '1',
+            playerVars: {
+              'autoplay': 1,
+              'controls': 0,
+              'disablekb': 1,
+              'enablejsapi': 1,
+              'fs': 0,
+              'playsinline': 1,
+              'origin': window.location.origin
+            },
+            events: {
+              'onReady': function(event) {
+                window.rhythmYT.isReady = true;
+                if (window.rhythmYT.pendingVideoId) {
+                  window.rhythmYT.playVideo(window.rhythmYT.pendingVideoId, window.rhythmYT.pendingStartSeconds);
+                  window.rhythmYT.pendingVideoId = null;
+                }
+              },
+              'onStateChange': function(event) {
+                window.rhythmYT.state = event.data;
+                if (typeof window.rhythmYT.onStateChangeCallback === 'function') {
+                  window.rhythmYT.onStateChangeCallback(event.data);
+                }
+              },
+              'onError': function(event) {
+                console.warn('Rhythm YouTube Player Error:', event.data);
+                if (typeof window.rhythmYT.onErrorCallback === 'function') {
+                  window.rhythmYT.onErrorCallback(event.data);
+                }
+              }
+            }
+          });
+        } catch (e) {
+          console.error('Error creating YouTube player:', e);
+        }
+      },
+
+      playVideo: function(videoId, startSeconds) {
+        window.rhythmYT.currentVideoId = videoId;
+        if (!window.rhythmYT.player || !window.rhythmYT.isReady) {
+          window.rhythmYT.pendingVideoId = videoId;
+          window.rhythmYT.pendingStartSeconds = startSeconds || 0;
+          window.rhythmYT.init();
+          return;
+        }
+        try {
+          window.rhythmYT.player.loadVideoById({
+            videoId: videoId,
+            startSeconds: startSeconds || 0
+          });
+          window.rhythmYT.player.playVideo();
+        } catch(e) {
+          console.error('playVideo failed:', e);
+        }
+      },
+
+      pauseVideo: function() {
+        if (window.rhythmYT.player && window.rhythmYT.isReady) {
+          try { window.rhythmYT.player.pauseVideo(); } catch(e) {}
+        }
+      },
+
+      resumeVideo: function() {
+        if (window.rhythmYT.player && window.rhythmYT.isReady) {
+          try { window.rhythmYT.player.playVideo(); } catch(e) {}
+        }
+      },
+
+      seekTo: function(seconds) {
+        if (window.rhythmYT.player && window.rhythmYT.isReady) {
+          try { window.rhythmYT.player.seekTo(seconds, true); } catch(e) {}
+        }
+      },
+
+      setVolume: function(volume) {
+        if (window.rhythmYT.player && window.rhythmYT.isReady) {
+          try { window.rhythmYT.player.setVolume(volume); } catch(e) {}
+        }
+      },
+
+      stopVideo: function() {
+        if (window.rhythmYT.player && window.rhythmYT.isReady) {
+          try { window.rhythmYT.player.stopVideo(); } catch(e) {}
+        }
+      },
+
+      getCurrentTime: function() {
+        if (window.rhythmYT.player && window.rhythmYT.isReady && typeof window.rhythmYT.player.getCurrentTime === 'function') {
+          try { return window.rhythmYT.player.getCurrentTime() || 0; } catch(e) { return 0; }
+        }
+        return 0;
+      },
+
+      getDuration: function() {
+        if (window.rhythmYT.player && window.rhythmYT.isReady && typeof window.rhythmYT.player.getDuration === 'function') {
+          try { return window.rhythmYT.player.getDuration() || 0; } catch(e) { return 0; }
+        }
+        return 0;
+      }
+    };
+
+    window.rhythmYT.init();
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

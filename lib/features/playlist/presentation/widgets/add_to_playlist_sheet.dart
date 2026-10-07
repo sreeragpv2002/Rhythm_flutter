@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rhythm_flutter/core/theme/scroll_physics.dart';
 import 'package:rhythm_flutter/features/playlist/data/models/user_playlist.dart';
 import 'package:rhythm_flutter/features/playlist/presentation/widgets/create_playlist_dialog.dart';
 import 'package:rhythm_flutter/features/playlist/providers/user_playlist_provider.dart';
@@ -266,7 +267,7 @@ class _AddToPlaylistSheetState extends ConsumerState<AddToPlaylistSheet> {
 
                   return ListView.builder(
                     shrinkWrap: true,
-                    physics: const BouncingScrollPhysics(),
+                    physics: AppScrollPhysics.adaptive,
                     itemCount: customPlaylists.length,
                     itemBuilder: (context, index) {
                       final playlist = customPlaylists[index];

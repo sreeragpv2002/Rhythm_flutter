@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
-import 'package:rhythm_flutter/core/services/audio_handler.dart';
 import 'package:rhythm_flutter/core/services/audio_quality_service.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
+import 'package:rhythm_flutter/core/theme/scroll_physics.dart';
 import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
 import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
 
@@ -158,7 +158,7 @@ class _DesktopPlayerSidebarState extends ConsumerState<DesktopPlayerSidebar> {
     final isLiked = ref.watch(favoritesProvider).contains(numericFavId);
 
     return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
+      physics: AppScrollPhysics.adaptive,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,6 +282,44 @@ class _DesktopPlayerSidebarState extends ConsumerState<DesktopPlayerSidebar> {
                             ? Colors.white.withValues(alpha: 0.55)
                             : AppColors.textSecondaryLight,
                       ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        if (ref.watch(isCurrentSongYouTubeProvider)) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF0000).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.play_arrow_rounded, size: 11, color: Color(0xFFFF4B6E)),
+                                SizedBox(width: 2),
+                                Text(
+                                  'YouTube Music',
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFFF8DA1),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Text(
+                          ref.watch(currentActiveQualityLabelProvider),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white38 : Colors.black38,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

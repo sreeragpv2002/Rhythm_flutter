@@ -8,8 +8,9 @@ import 'package:rhythm_flutter/features/home/data/repositories/music_repository.
 import 'package:rhythm_flutter/features/home/providers/favorites_provider.dart';
 import 'package:rhythm_flutter/core/services/media_item_mapper.dart';
 
-// Re-export the mapper so existing imports continue to work.
+// Re-export the mapper and audio handler so existing imports continue to work.
 export 'package:rhythm_flutter/core/services/media_item_mapper.dart';
+export 'package:rhythm_flutter/core/services/audio_handler.dart';
 
 /// Singleton provider for the audio handler — initialized in main.dart
 final audioHandlerProvider = Provider<RhythmAudioHandler>((ref) {
@@ -99,9 +100,9 @@ final currentMusicDetailsProvider = FutureProvider<Music?>((ref) async {
   // Sync favorites state
   ref.read(favoritesProvider.notifier).initFromList([music]);
 
-  // Auto-enrich queue with related songs if this is the only track.
+  // Auto-enrich queue with related/suggested songs if this is the only track.
   final queue = ref.read(audioHandlerProvider).queue.value;
-  if (queue.length <= 1 && music.audioUrl != null) {
+  if (queue.length <= 1) {
     final related = await repository.getRelatedSongs(mediaItem.id);
     if (related.isNotEmpty) {
       final relatedMediaItems = related.map((m) => musicToMediaItem(m)).toList();
@@ -112,4 +113,29 @@ final currentMusicDetailsProvider = FutureProvider<Music?>((ref) async {
   }
 
   return music;
+});
+
+/// Indicates if the currently playing song is from YouTube Music
+final isCurrentSongYouTubeProvider = Provider<bool>((ref) {
+  final mediaItem = ref.watch(currentMediaItemProvider).value;
+  if (mediaItem == null) return false;
+  final isYt = mediaItem.extras?['is_youtube'] as bool?;
+  if (isYt == true) return true;
+  final ytUrl = mediaItem.extras?['youtube_url'] as String?;
+  if (ytUrl != null && ytUrl.isNotEmpty) return true;
+  final id = mediaItem.id;
+  return RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(id);
+});
+
+/// Current YouTube Music web / watch URL
+final currentSongYouTubeUrlProvider = Provider<String?>((ref) {
+  final mediaItem = ref.watch(currentMediaItemProvider).value;
+  if (mediaItem == null) return null;
+  final ytUrl = mediaItem.extras?['youtube_url'] as String?;
+  if (ytUrl != null && ytUrl.isNotEmpty) return ytUrl;
+  final id = mediaItem.id;
+  if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(id)) {
+    return 'https://music.youtube.com/watch?v=$id';
+  }
+  return null;
 });

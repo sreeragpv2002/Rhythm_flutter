@@ -10,6 +10,10 @@ class HomeItem {
   final String type; // 'song', 'playlist', 'album', 'artist', 'language'
   final String? subtitle;
   final String? language;
+  final String? audioUrl;
+  final dynamic downloadUrls;
+  final String? youtubeUrl;
+  final int? duration;
 
   const HomeItem({
     required this.id,
@@ -20,9 +24,29 @@ class HomeItem {
     required this.type,
     this.subtitle,
     this.language,
+    this.audioUrl,
+    this.downloadUrls,
+    this.youtubeUrl,
+    this.duration,
   });
 
   factory HomeItem.fromJson(Map<String, dynamic> json) {
+    final rawDownload = json['download_urls'] ?? json['downloadUrl'] ?? json['download_url'];
+    String? audio = json['audio_url']?.toString() ?? json['audioUrl']?.toString();
+    if (audio == null && rawDownload is List && rawDownload.isNotEmpty) {
+      final last = rawDownload.last;
+      if (last is Map && last['url'] != null) {
+        audio = last['url'].toString();
+      }
+    }
+
+    int? dur;
+    if (json['duration'] is num) {
+      dur = (json['duration'] as num).toInt();
+    } else if (json['duration'] != null) {
+      dur = int.tryParse(json['duration'].toString());
+    }
+
     return HomeItem(
       id: json['id']?.toString() ?? '',
       name: _unescapeHtml(json['name']?.toString() ?? ''),
@@ -32,6 +56,10 @@ class HomeItem {
       type: json['type']?.toString() ?? 'song',
       subtitle: json['subtitle'] != null ? _unescapeHtml(json['subtitle'].toString()) : null,
       language: json['language']?.toString(),
+      audioUrl: audio,
+      downloadUrls: rawDownload,
+      youtubeUrl: json['youtube_url']?.toString() ?? json['url']?.toString(),
+      duration: dur,
     );
   }
 
@@ -54,6 +82,10 @@ class HomeItem {
     'type': type,
     'subtitle': subtitle,
     'language': language,
+    if (audioUrl != null) 'audio_url': audioUrl,
+    if (downloadUrls != null) 'download_urls': downloadUrls,
+    if (youtubeUrl != null) 'youtube_url': youtubeUrl,
+    if (duration != null) 'duration': duration,
   };
 
   String get displayTitle => title.isNotEmpty ? title : name;
@@ -79,6 +111,18 @@ class HomeItem {
   bool get isAlbum => type == 'album';
   bool get isPlaylist => type == 'playlist';
   bool get isLanguage => type == 'language';
+
+  bool get isYouTubeItem {
+    final yUrl = youtubeUrl;
+    if (yUrl != null &&
+        (yUrl.contains('youtube.com') ||
+            yUrl.contains('youtu.be') ||
+            yUrl.contains('music.youtube.com'))) {
+      return true;
+    }
+    final cleanId = id.trim();
+    return RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(cleanId) || cleanId.startsWith('yt_');
+  }
 
   // Compatibility helpers with legacy Music interface
   int get numericId {
@@ -263,54 +307,70 @@ class HomeFeed {
       recentPlays: [],
       trendingSongs: [
         HomeItem(
-          id: 'B6d7Dnf9',
+          id: 'zAiIgYOH4Ys',
           name: 'KALYANI (Remix)',
           title: 'KALYANI (Remix)',
-          image: 'https://c.saavncdn.com/475/KALYANI-Remix-Malayalam-2026-20260622131127-500x500.jpg',
-          imageUrl: 'https://c.saavncdn.com/475/KALYANI-Remix-Malayalam-2026-20260622131127-500x500.jpg',
+          image: 'https://yt3.googleusercontent.com/naKgO_9vvIczuf7Vq1llQyRAQOOW898kBZN3pio-Bkbfcmdu3Gv14_ivEBZiHAow8VbPEq1bhO0j2DU=w544-h544-l90-rj',
+          imageUrl: 'https://yt3.googleusercontent.com/naKgO_9vvIczuf7Vq1llQyRAQOOW898kBZN3pio-Bkbfcmdu3Gv14_ivEBZiHAow8VbPEq1bhO0j2DU=w544-h544-l90-rj',
           type: 'song',
           subtitle: 'ARJN, KDS, FIFTY4, Shreya Ghoshal',
           language: 'malayalam',
+          youtubeUrl: 'https://music.youtube.com/watch?v=zAiIgYOH4Ys',
         ),
         HomeItem(
-          id: 'P5pjB99X',
-          name: 'Radhimaa (From "Think Indie")',
-          title: 'Radhimaa (From "Think Indie")',
-          image: 'https://c.saavncdn.com/877/Radhimaa-From-Think-Indie-Tamil-2026-20260827192132-500x500.jpg',
-          imageUrl: 'https://c.saavncdn.com/877/Radhimaa-From-Think-Indie-Tamil-2026-20260827192132-500x500.jpg',
+          id: 'BmRX2g6-iQI',
+          name: 'Radhimaa [From "Think Indie"] (feat. Sai Smriti)',
+          title: 'Radhimaa [From "Think Indie"] (feat. Sai Smriti)',
+          image: 'https://yt3.googleusercontent.com/YpHZO1DBcGPbgywaeckHbkkiI-b4OetQDJnQtCM--usqBrKljB-9uXax23i3hHI-PiTlyyHLBdYScSeGRQ=w544-h544-l90-rj',
+          imageUrl: 'https://yt3.googleusercontent.com/YpHZO1DBcGPbgywaeckHbkkiI-b4OetQDJnQtCM--usqBrKljB-9uXax23i3hHI-PiTlyyHLBdYScSeGRQ=w544-h544-l90-rj',
           type: 'song',
           subtitle: 'Sai Abhyankkar, Nargis Teji, Asma Teji, Vivek',
           language: 'tamil',
+          youtubeUrl: 'https://music.youtube.com/watch?v=BmRX2g6-iQI',
         ),
         HomeItem(
-          id: 'cF86CZqV',
-          name: "Ain't Nobody",
-          title: "Ain't Nobody",
-          image: 'https://c.saavncdn.com/965/DC-Original-Motion-Picture-Soundtrack-Tamil-2026-20260805081906-500x500.jpg',
-          imageUrl: 'https://c.saavncdn.com/965/DC-Original-Motion-Picture-Soundtrack-Tamil-2026-20260805081906-500x500.jpg',
-          type: 'song',
-          subtitle: 'Anirudh Ravichander, Heisenberg, Ram Kumar',
-          language: 'english',
-        ),
-        HomeItem(
-          id: 'y-0pauOM',
-          name: 'KALYANI',
-          title: 'KALYANI',
-          image: 'https://c.saavncdn.com/534/KALYANI-Malayalam-2025-20251109053143-500x500.jpg',
-          imageUrl: 'https://c.saavncdn.com/534/KALYANI-Malayalam-2025-20251109053143-500x500.jpg',
-          type: 'song',
-          subtitle: 'ARJN, KDS, FIFTY4, ronn',
-          language: 'malayalam',
-        ),
-        HomeItem(
-          id: 'Ck1V-H4b',
+          id: 'NAkQVL61BRI',
           name: 'Raga of Revenge (From "DC")',
           title: 'Raga of Revenge (From "DC")',
-          image: 'https://c.saavncdn.com/484/Raga-of-Revenge-From-DC-Tamil-2026-20260515180436-500x500.jpg',
-          imageUrl: 'https://c.saavncdn.com/484/Raga-of-Revenge-From-DC-Tamil-2026-20260515180436-500x500.jpg',
+          image: 'https://yt3.googleusercontent.com/rfk664Pl2AHH44a0Du2czXg-EhFwgKw_R3K-DEPmSz9zvM-rf4r5izHzB1cqqYuLuVUnszM464q0nml-=w544-h544-l90-rj',
+          imageUrl: 'https://yt3.googleusercontent.com/rfk664Pl2AHH44a0Du2czXg-EhFwgKw_R3K-DEPmSz9zvM-rf4r5izHzB1cqqYuLuVUnszM464q0nml-=w544-h544-l90-rj',
           type: 'song',
           subtitle: 'Anirudh Ravichander',
           language: 'tamil',
+          youtubeUrl: 'https://music.youtube.com/watch?v=NAkQVL61BRI',
+        ),
+        HomeItem(
+          id: 'S1jo8K4kDJc',
+          name: 'Illuminati (From "Aavesham")',
+          title: 'Illuminati (From "Aavesham")',
+          image: 'https://yt3.googleusercontent.com/RjRPztjAVR2sxLUV-pIK5n0TVvzQcousWmlxLZYJMxTEoJDS7YiB0u0CuJ4qYWSarxqzaOQPoyrmF8Yh4g=w544-h544-l90-rj',
+          imageUrl: 'https://yt3.googleusercontent.com/RjRPztjAVR2sxLUV-pIK5n0TVvzQcousWmlxLZYJMxTEoJDS7YiB0u0CuJ4qYWSarxqzaOQPoyrmF8Yh4g=w544-h544-l90-rj',
+          type: 'song',
+          subtitle: 'Sushin Shyam, Dabzee, Vinayak Sasikumar',
+          language: 'malayalam',
+          youtubeUrl: 'https://music.youtube.com/watch?v=S1jo8K4kDJc',
+        ),
+        HomeItem(
+          id: '0MQwuGR_tr0',
+          name: 'Singari (From "Dude")',
+          title: 'Singari (From "Dude")',
+          image: 'https://yt3.googleusercontent.com/29o3mo_-5Jn1XP_4cqH4Gmy2OqjBIB3BA2ttjzH7XDqQYjO4F_48nC-IwpN0JKy4bH4csI2y6Dj1Qus=w544-h544-l90-rj',
+          imageUrl: 'https://yt3.googleusercontent.com/29o3mo_-5Jn1XP_4cqH4Gmy2OqjBIB3BA2ttjzH7XDqQYjO4F_48nC-IwpN0JKy4bH4csI2y6Dj1Qus=w544-h544-l90-rj',
+          type: 'song',
+          subtitle: 'Sai Abhyankkar, Pradeep Ranganathan, Sai Smriti',
+          language: 'tamil',
+          youtubeUrl: 'https://music.youtube.com/watch?v=0MQwuGR_tr0',
+        ),
+        HomeItem(
+          id: 'sVgnd4w315g',
+          name: 'Alaakaa Loova (From "OM Chapter 1")',
+          title: 'Alaakaa Loova (From "OM Chapter 1")',
+          image: 'https://yt3.googleusercontent.com/F_zOOpQrlMOrIT50KDXGX54temlvXtXhWM-9e6TBAxCSP-F_Tt8bxONr5jBN7UwvoCwUifR0xph_QQeX=w544-h544-l90-rj',
+          imageUrl: 'https://yt3.googleusercontent.com/F_zOOpQrlMOrIT50KDXGX54temlvXtXhWM-9e6TBAxCSP-F_Tt8bxONr5jBN7UwvoCwUifR0xph_QQeX=w544-h544-l90-rj',
+          type: 'song',
+          subtitle: 'Sai Abhyankkar, Rokesh',
+          language: 'tamil',
+          youtubeUrl: 'https://music.youtube.com/watch?v=sVgnd4w315g',
         ),
       ],
       featuredPlaylists: [

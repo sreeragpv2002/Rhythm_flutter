@@ -8,9 +8,23 @@ part 'music.freezed.dart';
 part 'music.g.dart';
 
 final Map<int, String> musicRawIdMap = {};
+final Map<int, String> musicYoutubeUrlMap = {};
+final Map<int, String> musicDurationFormattedMap = {};
+final Map<int, List<Music>> musicSuggestedSongsMap = {};
 
 extension MusicRawIdExtension on Music {
   String get rawStringId => musicRawIdMap[id] ?? id.toString();
+  String? get youtubeUrl => musicYoutubeUrlMap[id];
+  String? get durationFormatted => musicDurationFormattedMap[id];
+  List<Music>? get suggestedSongs => musicSuggestedSongsMap[id];
+  bool get isYouTubeSong {
+    final yUrl = youtubeUrl;
+    if (yUrl != null && (yUrl.contains('youtube.com') || yUrl.contains('youtu.be'))) {
+      return true;
+    }
+    final rawId = rawStringId;
+    return RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(rawId);
+  }
 }
 
 @freezed
@@ -46,10 +60,11 @@ class Music with _$Music {
     final data = Map<String, dynamic>.from(json);
 
     // 0. Handle safe ID (convert alphanumeric string ID if needed)
+    int resolvedNumeric = 0;
     if (data['id'] != null) {
       final rawId = data['id'].toString();
       final numericId = int.tryParse(rawId);
-      final resolvedNumeric = numericId ?? rawId.hashCode.abs();
+      resolvedNumeric = numericId ?? rawId.hashCode.abs();
       data['id'] = resolvedNumeric;
       data['raw_id'] = rawId;
       musicRawIdMap[resolvedNumeric] = rawId;
@@ -109,6 +124,14 @@ class Music with _$Music {
           }
           return {'en': e.toString()};
         }).toList();
+      } else if (data['artist'] is String && (data['artist'] as String).isNotEmpty) {
+        final artistStr = data['artist'] as String;
+        final names = artistStr.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty);
+        data['artist_names'] = names.map((n) => {'en': n}).toList();
+      } else if (data['subtitle'] is String && (data['subtitle'] as String).isNotEmpty) {
+        final subtitleStr = data['subtitle'] as String;
+        final names = subtitleStr.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty);
+        data['artist_names'] = names.map((n) => {'en': n}).toList();
       } else if (data['artist'] != null) {
         final e = data['artist'];
         if (e is Map && e['name'] != null) {
@@ -134,6 +157,15 @@ class Music with _$Music {
       }).toList();
     } else {
       data['artist_names'] = <Map<String, String>>[];
+    }
+
+    // Fallback to subtitle or artist string if artist_names ended up empty
+    if ((data['artist_names'] as List).isEmpty) {
+      final fallbackArtist = data['subtitle'] ?? data['artist'];
+      if (fallbackArtist is String && fallbackArtist.isNotEmpty) {
+        final names = fallbackArtist.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty);
+        data['artist_names'] = names.map((n) => {'en': n}).toList();
+      }
     }
 
     // 3. Handle album mapping (Normalize to Map)
@@ -192,15 +224,38 @@ class Music with _$Music {
       }
     }
 
-    // 6. Handle Playback duration
+    // 6. Handle Playback duration (supports duration_formatted like "4:49")
     if (data['duration_seconds'] != null) {
       data['duration'] = data['duration_seconds'];
-    } else if (data['duration'] != null) {
+    } else if (data['duration'] != null &&
+        (data['duration'] is num || int.tryParse(data['duration'].toString()) != null)) {
       data['duration'] = data['duration'] is num
           ? (data['duration'] as num).toInt()
           : (int.tryParse(data['duration'].toString()) ?? 0);
+    } else if (data['duration_formatted'] != null) {
+      final formatted = data['duration_formatted'].toString().trim();
+      final parts = formatted.split(':').map((p) => int.tryParse(p) ?? 0).toList();
+      if (parts.length == 2) {
+        data['duration'] = parts[0] * 60 + parts[1];
+      } else if (parts.length == 3) {
+        data['duration'] = parts[0] * 3600 + parts[1] * 60 + parts[2];
+      } else if (parts.length == 1) {
+        data['duration'] = parts[0];
+      } else {
+        data['duration'] = 0;
+      }
     } else {
       data['duration'] = 0;
+    }
+
+    // Track YouTube URL and formatted duration in companion maps
+    if (data['duration_formatted'] != null) {
+      musicDurationFormattedMap[resolvedNumeric] = data['duration_formatted'].toString();
+    }
+    final ytUrl = data['url']?.toString() ?? data['youtube_url']?.toString();
+    if (ytUrl != null && ytUrl.isNotEmpty) {
+      musicYoutubeUrlMap[resolvedNumeric] = ytUrl;
+      data['youtube_url'] = ytUrl;
     }
 
     // Unify favorite fields

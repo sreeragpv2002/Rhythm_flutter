@@ -2,12 +2,12 @@ import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rhythm_flutter/core/theme/app_colors.dart';
 import 'package:rhythm_flutter/core/extensions/context_extensions.dart';
-import 'package:rhythm_flutter/core/services/audio_handler.dart';
 import 'package:rhythm_flutter/core/services/audio_quality_service.dart';
 import 'package:rhythm_flutter/features/home/data/models/music.dart';
 import 'package:rhythm_flutter/features/player/providers/audio_provider.dart';
@@ -59,7 +59,11 @@ class _SongDetailScreenState extends ConsumerState<SongDetailScreen> {
   }
 
   void _playMusic(Music music, RhythmAudioHandler handler, String locale) {
-    handler.loadPlaylist([musicToMediaItem(music, locale)]);
+    handler.loadPlaylist(
+      [musicToMediaItem(music, locale)],
+      initialIndex: 0,
+      source: QueueSource.song,
+    );
   }
 
   @override
@@ -672,6 +676,8 @@ class _ModernMetadataSection extends ConsumerWidget {
             context.l10n.unknownArtist);
 
     final qualityLabel = ref.watch(currentActiveQualityLabelProvider);
+    final isYouTube = ref.watch(isCurrentSongYouTubeProvider);
+    final ytUrl = ref.watch(currentSongYouTubeUrlProvider);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -705,10 +711,28 @@ class _ModernMetadataSection extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              // Quality Pill Badge
-              _ModernQualityBadge(
-                label: qualityLabel,
-                onTap: onQualityTap,
+              // Quality & YouTube Pill Badges
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _ModernQualityBadge(
+                    label: qualityLabel,
+                    onTap: onQualityTap,
+                  ),
+                  if (isYouTube)
+                    _YouTubeMusicBadge(
+                      onTap: () => _showYouTubeInfoSheet(
+                        context,
+                        ytUrl ?? 'https://music.youtube.com/watch?v=${item?.id ?? initialId}',
+                        title,
+                        artist,
+                        music?.getDisplayAlbum(context.l10n.localeName),
+                        music?.durationFormatted ?? item?.extras?['duration_formatted'] as String?,
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
@@ -1220,6 +1244,208 @@ class _ModernQualityBadge extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 🔴 YOUTUBE MUSIC PILL BADGE & INFO MODAL
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _YouTubeMusicBadge extends StatelessWidget {
+  final VoidCallback? onTap;
+
+  const _YouTubeMusicBadge({this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFF0000).withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFFFF0000).withValues(alpha: 0.35),
+          ),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.play_circle_filled_rounded,
+              size: 12,
+              color: Color(0xFFFF4B6E),
+            ),
+            SizedBox(width: 4),
+            Text(
+              'YOUTUBE MUSIC',
+              style: TextStyle(
+                color: Color(0xFFFF8DA1),
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _showYouTubeInfoSheet(
+  BuildContext context,
+  String url,
+  String title,
+  String artist,
+  String? album,
+  String? durationFormatted,
+) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (context) => Container(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF141326) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(
+          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.1),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF0000).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.play_circle_fill_rounded,
+                    color: Color(0xFFFF4B6E), size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'YouTube Music',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    Text(
+                      'Universal playback active across Web, Desktop & Mobile',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: isDark ? Colors.white54 : Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                _buildInfoRow('Track', title, isDark),
+                const SizedBox(height: 8),
+                _buildInfoRow('Artists', artist, isDark),
+                if (album != null && album.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _buildInfoRow('Album', album, isDark),
+                ],
+                if (durationFormatted != null && durationFormatted.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _buildInfoRow('Duration', durationFormatted, isDark),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF0000),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              icon: const Icon(Icons.copy_rounded, size: 18),
+              label: const Text('Copy YouTube Music Link',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: url));
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('YouTube Music link copied to clipboard'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildInfoRow(String label, String value, bool isDark) {
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SizedBox(
+        width: 72,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: isDark ? Colors.white54 : Colors.black54,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+      Expanded(
+        child: Text(
+          value,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 🌌 MODERN AMBIENT BLUR BACKGROUND
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1462,10 +1688,7 @@ class _UpNextBottomSheet extends StatelessWidget {
                               size: 24,
                             ),
                             onTap: () {
-                              final mediaItems = songs
-                                  .map((s) => musicToMediaItem(s, locale))
-                                  .toList();
-                              handler.loadPlaylist(mediaItems, initialIndex: i);
+                              handler.skipToQueueItem(i);
                               Navigator.pop(context);
                             },
                           );
@@ -1536,9 +1759,11 @@ class _CompactTile extends StatelessWidget {
         maxLines: 1,
       ),
       onTap: () {
-        final mediaItems =
-            songs.map((s) => musicToMediaItem(s, locale)).toList();
-        handler.loadPlaylist(mediaItems, initialIndex: index);
+        handler.loadPlaylist(
+          [musicToMediaItem(song, locale)],
+          initialIndex: 0,
+          source: QueueSource.song,
+        );
       },
     );
   }

@@ -74,9 +74,12 @@ class MusicRepository {
     }
   }
 
-  /// Get Song details with suggested songs list from GET /api/v1/songs/{id}
+  /// Get Song details with suggested songs list from GET /api/v1/songs/{id} or /api/v1/details
   Future<Map<String, dynamic>?> getSongDetails(String songId, {int limit = 10}) async {
     try {
+      final unified = await getUnifiedDetails(type: 'song', id: songId, limit: limit);
+      if (unified != null) return unified;
+
       Response response;
       final queryParams = {'limit': limit};
       try {
@@ -87,7 +90,17 @@ class MusicRepository {
       }
 
       if (response.data != null) {
-        return response.data['data'] ?? response.data;
+        final dynamic raw = response.data;
+        if (raw is Map<String, dynamic>) {
+          if (raw['success'] == true && raw['data'] is Map<String, dynamic>) {
+            return raw['data'] as Map<String, dynamic>;
+          }
+          final dynamic inner = raw['data'];
+          if (inner is Map<String, dynamic>) {
+            return inner;
+          }
+          return raw;
+        }
       }
       return null;
     } catch (e) {
@@ -641,7 +654,8 @@ class MusicRepository {
       final details = await getSongDetails(id.toString());
       if (details != null && details['suggested_songs'] is List) {
         return (details['suggested_songs'] as List)
-            .map((e) => Music.fromJson(e as Map<String, dynamic>))
+            .whereType<Map<String, dynamic>>()
+            .map((e) => Music.fromJson(e))
             .toList();
       }
       return [];
