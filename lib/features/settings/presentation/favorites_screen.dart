@@ -93,7 +93,10 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0D0D14) : const Color(0xFFF7F8FC),
-      body: RefreshIndicator(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(favoritesListProvider);
           await ref.read(favoritesListProvider.future);
@@ -487,15 +490,15 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                   ),
                 ),
               ),
-
-            // Bottom Spacing for MiniPlayer
             const SliverToBoxAdapter(
               child: SizedBox(height: AppSpacing.miniPlayerHeight + AppSpacing.xxl),
             ),
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }
 

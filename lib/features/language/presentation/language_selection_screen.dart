@@ -261,8 +261,8 @@ class _LanguageSelectionScreenState
                     : GridView.builder(
                         physics: AppScrollPhysics.adaptive,
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: isDesktop ? 4 : (width >= 600 ? 3 : 2),
+                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 280,
                           mainAxisExtent: 88,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,

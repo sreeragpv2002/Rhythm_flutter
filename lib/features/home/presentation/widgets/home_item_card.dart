@@ -109,7 +109,8 @@ class _HomeItemCardState extends State<HomeItemCard>
                       ),
                     )
                   else
-                    AnimatedContainer(
+                    Flexible(
+                      child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       decoration: BoxDecoration(
                         borderRadius:
@@ -242,6 +243,7 @@ class _HomeItemCardState extends State<HomeItemCard>
                         ),
                       ),
                     ),
+                  ),
 
                   const SizedBox(height: AppSpacing.sm),
 

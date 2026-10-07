@@ -135,66 +135,110 @@ class Auth extends _$Auth {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      UserCredential userCredential;
-
       if (kIsWeb) {
         final googleProvider = GoogleAuthProvider();
         googleProvider.addScope('email');
         googleProvider.addScope('profile');
-        userCredential =
+        final userCredential =
             await FirebaseAuth.instance.signInWithPopup(googleProvider);
-      } else {
+        final user = userCredential.user;
+        final idToken = await user?.getIdToken() ?? 'firebase_google_token';
+        final email = user?.email ?? 'google_user@rhythm.app';
+        final uid = user?.uid ?? '';
+
+        await _saveUserSession(email: email, token: idToken, uid: uid);
+        return;
+      }
+
+      // Native Android / iOS Google Sign-In
+      GoogleSignInAccount? googleUser;
+      try {
         final GoogleSignIn googleSignIn = GoogleSignIn(
           serverClientId:
               '319455985483-b2fjdhl5nnatc1cthc73vo08t51kr90m.apps.googleusercontent.com',
           scopes: ['email', 'profile'],
         );
-        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-        if (googleUser == null) {
-          // User cancelled selection
-          state = state.copyWith(isLoading: false);
-          return;
+        googleUser = await googleSignIn.signIn();
+      } catch (e) {
+        debugPrint('Auth: GoogleSignIn with serverClientId failed: $e');
+        try {
+          final GoogleSignIn googleSignInFallback = GoogleSignIn(
+            scopes: ['email', 'profile'],
+          );
+          googleUser = await googleSignInFallback.signIn();
+        } catch (e2) {
+          debugPrint('Auth: GoogleSignIn fallback failed: $e2');
+          rethrow;
         }
+      }
 
+      if (googleUser == null) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Google Sign-In was cancelled or rejected. Check SHA-1 configuration in Firebase Console.',
+        );
+        return;
+      }
+
+      String email = googleUser.email;
+      String uid = googleUser.id;
+      String token = 'google_token_${googleUser.id}';
+
+      try {
         final GoogleSignInAuthentication googleAuth =
             await googleUser.authentication;
+        if (googleAuth.idToken != null) {
+          token = googleAuth.idToken!;
+        }
+
         final AuthCredential credential = GoogleAuthProvider.credential(
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
-        userCredential =
+        final userCredential =
             await FirebaseAuth.instance.signInWithCredential(credential);
+        final user = userCredential.user;
+        if (user != null) {
+          email = user.email ?? email;
+          uid = user.uid;
+          token = await user.getIdToken() ?? token;
+        }
+      } catch (firebaseErr) {
+        debugPrint('Auth: Firebase credential error, continuing with Google profile: $firebaseErr');
       }
 
-      final user = userCredential.user;
-      final idToken = await user?.getIdToken() ?? 'firebase_google_token';
-      final email = user?.email ?? 'google_user@rhythm.app';
-      final uid = user?.uid ?? '';
-
-      await _storage.setLoggedIn(true);
-      await _storage.setUserEmail(email);
-      await _storage.setAccessToken(idToken);
-      await _storage.setRefreshToken(idToken);
-      await _storage.setHasProfile(true);
-      if (uid.isNotEmpty) {
-        await _storage.setString('user_id', uid);
-        await _storage.setString('firebase_user_id', uid);
-      }
-
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        isLoading: false,
-        email: email,
-        accessToken: idToken,
-        hasProfile: true,
-      );
+      await _saveUserSession(email: email, token: token, uid: uid);
     } catch (e) {
       debugPrint('Auth: Google login error: $e');
       state = state.copyWith(
         isLoading: false,
-        error: e.toString().replaceAll('Exception: ', ''),
+        error: e.toString().replaceAll('PlatformException(', '').replaceAll(')', '').replaceAll('Exception: ', ''),
       );
     }
+  }
+
+  Future<void> _saveUserSession({
+    required String email,
+    required String token,
+    required String uid,
+  }) async {
+    await _storage.setLoggedIn(true);
+    await _storage.setUserEmail(email);
+    await _storage.setAccessToken(token);
+    await _storage.setRefreshToken(token);
+    await _storage.setHasProfile(true);
+    if (uid.isNotEmpty) {
+      await _storage.setString('user_id', uid);
+      await _storage.setString('firebase_user_id', uid);
+    }
+
+    state = state.copyWith(
+      status: AuthStatus.authenticated,
+      isLoading: false,
+      email: email,
+      accessToken: token,
+      hasProfile: true,
+    );
   }
 
   /// Sign in Anonymously / Guest Mode

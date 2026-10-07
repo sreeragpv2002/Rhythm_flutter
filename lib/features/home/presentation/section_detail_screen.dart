@@ -97,7 +97,7 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
     // Responsive thresholds
     final bool isDesktop = screenWidth >= 960;
     final bool isTablet = screenWidth >= 600 && screenWidth < 960;
-    final int crossAxisCount = isDesktop ? 5 : (isTablet ? 3 : 2);
+    final int crossAxisCount = isDesktop ? 4 : (isTablet ? 2 : 2);
     final double horizontalPadding = isDesktop ? AppSpacing.xl * 2 : AppSpacing.md;
 
     final displayTitle = widget.title.isNotEmpty
@@ -400,7 +400,7 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
                       crossAxisCount: crossAxisCount,
                       mainAxisSpacing: isDesktop ? AppSpacing.lg : AppSpacing.md,
                       crossAxisSpacing: isDesktop ? AppSpacing.lg : AppSpacing.md,
-                      childAspectRatio: isDesktop ? 0.8 : 0.72,
+                      childAspectRatio: isDesktop ? 0.72 : (isTablet ? 0.70 : 0.68),
                     ),
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {

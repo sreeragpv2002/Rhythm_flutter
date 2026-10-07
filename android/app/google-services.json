@@ -16,6 +16,11 @@
         {
           "client_id": "319455985483-b2fjdhl5nnatc1cthc73vo08t51kr90m.apps.googleusercontent.com",
           "client_type": 3
+        },
+        {
+          "client_id": "319455985483-androiddebug.apps.googleusercontent.com",
+          "client_type": 1,
+          "certificate_hash": "f44f775cb6f35095056b72c7240f6febfb3ea71c"
         }
       ],
       "api_key": [

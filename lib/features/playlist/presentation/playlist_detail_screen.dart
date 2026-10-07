@@ -42,7 +42,12 @@ class PlaylistDetailScreen extends ConsumerWidget {
           if (isDesktop) {
             return _DesktopPlaylistView(playlist: playlist);
           }
-          return _MobilePlaylistView(playlist: playlist);
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 860),
+              child: _MobilePlaylistView(playlist: playlist),
+            ),
+          );
         },
       ),
     );

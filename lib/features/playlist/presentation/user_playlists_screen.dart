@@ -53,7 +53,10 @@ class UserPlaylistsScreen extends ConsumerWidget {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
-      body: RefreshIndicator(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: RefreshIndicator(
         onRefresh: () => ref.read(userPlaylistsProvider.notifier).refresh(),
         child: playlistsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -176,6 +179,8 @@ class UserPlaylistsScreen extends ConsumerWidget {
               },
             );
           },
+        ),
+        ),
         ),
       ),
     );
