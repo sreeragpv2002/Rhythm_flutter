@@ -654,13 +654,25 @@ class RhythmAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler
       url = url.replaceFirst('http://', 'https://');
     }
 
-    debugPrint('AudioHandler: Resolved URL for ${item.id}: $url');
-
     // CRITICAL for Web: Browsers HTMLAudioElement does not support custom request headers.
     // Supplying headers on Web triggers UnsupportedError or CORS preflight blocks.
-    final useHeaders = kIsWeb
-        ? null
-        : (url.contains(Uri.parse(_baseStreamUrl).host) ? headers : null);
+    Map<String, String>? useHeaders;
+    if (!kIsWeb) {
+      final map = <String, String>{};
+      if (url.contains(Uri.parse(_baseStreamUrl).host)) {
+        map.addAll(headers);
+      }
+      if (url.contains('googlevideo.com') ||
+          url.contains('youtube') ||
+          url.contains('piped') ||
+          url.contains('invidious')) {
+        map['User-Agent'] =
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+      }
+      if (map.isNotEmpty) {
+        useHeaders = map;
+      }
+    }
 
     // On Web, strip artUri from AudioSource tag to prevent just_audio_web XMLHttpRequest 429 errors
     final useTag = kIsWeb ? item.copyWith(artUri: null) : item;

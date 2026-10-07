@@ -45,11 +45,13 @@ class YouTubeAudioService {
       : _dio = dio ??
             Dio(
               BaseOptions(
-                connectTimeout: const Duration(seconds: 4),
-                receiveTimeout: const Duration(seconds: 4),
-                sendTimeout: kIsWeb ? null : const Duration(seconds: 4),
+                connectTimeout: const Duration(seconds: 5),
+                receiveTimeout: const Duration(seconds: 5),
+                sendTimeout: kIsWeb ? null : const Duration(seconds: 5),
                 headers: {
                   'Accept': 'application/json',
+                  'User-Agent':
+                      'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
                 },
               ),
             );
@@ -129,19 +131,38 @@ class YouTubeAudioService {
 
     debugPrint('YouTubeAudioService: Resolving YouTube stream for $videoId...');
 
-    // 2. Fast parallel check of top working mirrors with 2.5s timeout
-    final activeMirrors = ['https://pipedapi.leptons.xyz', 'https://pa.il.ax', 'https://inv.nadeko.net'];
+    // 2. Fast parallel check of top working mirrors with 3.5s timeout
+    final activeMirrors = [
+      'https://pipedapi.mha.fi',
+      'https://api.piped.privacydev.net',
+      'https://pipedapi.adminforge.de',
+      'https://pipedapi.leptons.xyz',
+      'https://piped-api.garudalinux.org',
+      'https://pipedapi.tokhmi.xyz',
+      'https://invidious.nerdvpn.de',
+      'https://inv.nadeko.net',
+      'https://invidious.drgns.space',
+      'https://vid.puffyan.us',
+    ];
+
     final futures = activeMirrors.map((mirror) async {
       try {
-        final streamUrl = mirror.contains('piped')
+        final streamUrl = mirror.contains('piped') || mirror.contains('privacydev') || mirror.contains('adminforge') || mirror.contains('mha.fi') || mirror.contains('garudalinux') || mirror.contains('tokhmi')
             ? '$mirror/streams/$videoId'
             : '$mirror/api/v1/videos/$videoId';
         final response = await _dio.get<Map<String, dynamic>>(
           streamUrl,
-          options: Options(receiveTimeout: const Duration(milliseconds: 2500)),
+          options: Options(
+            receiveTimeout: const Duration(milliseconds: 3500),
+            headers: {
+              'User-Agent':
+                  'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+            },
+          ),
         );
         if (response.data != null) {
-          if (mirror.contains('piped') && response.data!['audioStreams'] is List) {
+          if ((mirror.contains('piped') || mirror.contains('privacydev') || mirror.contains('adminforge') || mirror.contains('mha.fi') || mirror.contains('garudalinux') || mirror.contains('tokhmi')) &&
+              response.data!['audioStreams'] is List) {
             return _parsePipedStreams(videoId, response.data!);
           } else if (response.data!['adaptiveFormats'] is List) {
             return _parseInvidiousStreams(videoId, response.data!);
@@ -152,7 +173,7 @@ class YouTubeAudioService {
     });
 
     try {
-      final results = await Future.wait(futures).timeout(const Duration(seconds: 3));
+      final results = await Future.wait(futures).timeout(const Duration(seconds: 5));
       final resolved = results.firstWhere((r) => r != null && r.bestAudioUrl.isNotEmpty, orElse: () => null);
       if (resolved != null) {
         _cache[videoId] = _CachedYouTubeStream(
